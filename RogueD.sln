@@ -15,6 +15,12 @@ Project("{002A2DE9-8BB6-484D-9802-7E4AD4084715}") = "RogueDServer", "RogueDServe
 		{04FF6432-DF36-4415-8CD7-7CBE73FFC946} = {04FF6432-DF36-4415-8CD7-7CBE73FFC946}
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{59D68403-3036-46AB-BE02-231F0FEB046A}"
+	ProjectSection(SolutionItems) = preProject
+		.gitattributes = .gitattributes
+		.gitignore = .gitignore
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug LDC|x64 = Debug LDC|x64
