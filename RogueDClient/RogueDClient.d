@@ -5,18 +5,40 @@ import core.time;
 import std.stdio;
 import Messages;
 import Client;
+import ClientGameInstance;
+import ClientGameView:ClientGameView;
 
 int main()
 {
     writeln("Hello D World!\n");
 
 	TCPGClient c = new TCPGClient();
-	c.Connect();
+	ClientGameInstance g = new ClientGameInstance(80, 25);
+	ClientGameView.game = &g;
+	c.game = &g;
+
+	ClientGameView.gameLog.Write("start!");
 	int i = 0;
 	while(true)
 	{
-		c.HandleNetworking();
-		Thread.sleep( dur!("msecs")( 1000 ) );
+		c.HandleNetworkingState();
+		c.HandleNetworkingInput();
+		PROCESS_RESULT pr = g.ProcessMessages();
+		if(pr == PROCESS_RESULT.CONNECT)
+		{
+			c.Connect();
+		}
+		else if(pr == PROCESS_RESULT.DISCONNECT)
+		{
+			c.Disconnect();
+		}
+		else if(pr == PROCESS_RESULT.EXIT)
+		{
+			break;
+		}
+		ClientGameView.DrawFrame();
+		c.HandleNetworkingOutput();
+		Thread.sleep( dur!("msecs")( 33 ) );
 		//writeln("Step of 1 sec");
 		i+=1;
 	}

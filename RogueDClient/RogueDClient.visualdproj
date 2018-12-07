@@ -866,6 +866,7 @@
  </Config>
  <Folder name="RogueDClient">
   <File path="Client.d" />
+  <File path="ClientGameInstance.d" />
   <File path="ClientGameView.d" />
   <File path="RogueDClient.d" />
  </Folder>

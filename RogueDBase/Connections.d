@@ -8,6 +8,9 @@ enum DEFAULT_PORT = 8081;
 enum MAX_CONNECTIONS = 2;
 enum BUFFER_SIZE = 65536;
 
+enum TRY_CONNECT_TIMEOUT = 15; //seconds
+enum CONNECTION_LOST_TIMEOUT = 10; //seconds
+
 class Queue(T)
 {
 	DList!T list;

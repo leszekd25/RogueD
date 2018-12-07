@@ -2,7 +2,7 @@ module Cell;
 
 import utility.ConIO: FColor, BColor;
 
-enum CellFlags {blocksMovement = 1, blocksVision = 2, blocksProjectiles = 4};
+enum CellFlags {blocksMovement = 1, blocksVision = 2, blocksProjectiles = 4, discovered = 8};
 
 struct Glyph
 {

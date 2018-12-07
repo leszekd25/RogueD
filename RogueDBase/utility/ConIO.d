@@ -1,10 +1,14 @@
 module utility.ConIO;
 
 import core.stdc.stdio;
+extern (C) void _STI_conio(); // initializes DM access ton conin, conout
+extern (C) void _STD_conio(); // properly closes handles
+extern (C) int kbhit();       // the conio function is in the DMD library
+extern (C) int getch();       // as is his friend getch 
 extern (C) int isatty(int);
 
-enum WIDTH=100;
-enum HEIGHT=32;
+enum WIDTH=32;
+enum HEIGHT=100;
 enum WH = WIDTH*HEIGHT;
 
 enum FColor : ubyte
@@ -62,11 +66,10 @@ version(Windows)
 	struct Console
 	{
 	private:
-        CONSOLE_SCREEN_BUFFER_INFO[2] sbi;
-        HANDLE[2] handle;
+        CONSOLE_SCREEN_BUFFER_INFO sbi;
+        HANDLE handle;
 		CHAR_INFO[WH] buffer;
 
-		int active_buffer;
         FILE* _fp;
 
 	public:
@@ -78,38 +81,19 @@ version(Windows)
 
 			DWORD nStdHandle = STD_OUTPUT_HANDLE;
 
-			HWND conw = GetConsoleWindow();
-
 			auto h = GetStdHandle(nStdHandle);
-
-			CONSOLE_FONT_INFO font_info;
-			GetCurrentConsoleFont(h, false, &font_info);
-			SetWindowPos(conw, HWND_TOP, 0, 0, font_info.dwFontSize.X*WIDTH, font_info.dwFontSize.Y*HEIGHT, 0);
-			SetConsoleScreenBufferSize(h, COORD(WIDTH, HEIGHT));
-
 
             CONSOLE_SCREEN_BUFFER_INFO sbi;
             if (GetConsoleScreenBufferInfo(h, &sbi) == 0) // get initial state of console
                 return null;
 
-			auto h2 = CreateConsoleScreenBuffer(GENERIC_READ |           // read/write access 
-												GENERIC_WRITE, 
-												FILE_SHARE_READ | 
-												FILE_SHARE_WRITE,        // shared 
-												NULL,                    // default security attributes 
-												CONSOLE_TEXTMODE_BUFFER, // must be TEXTMODE 
-												NULL);                   // reserved; must be NULL )
-			CONSOLE_SCREEN_BUFFER_INFO sbi2;
-            if (GetConsoleScreenBufferInfo(h2, &sbi2) == 0) // get initial state of console
-                return null;
+			SetConsoleScreenBufferSize(h, COORD(WIDTH, HEIGHT));
 
             auto c = new Console();
             c._fp = fp;
-            c.handle[0] = h;
-            c.sbi[0] = sbi;
-			c.handle[1] = h2;
-            c.sbi[1] = sbi2;
-			c.active_buffer = 0;
+            c.handle = h;
+            c.sbi = sbi;
+			c.clear();
             return c;
 		}
 
@@ -153,10 +137,30 @@ version(Windows)
 		{
 			ushort col = f | b;
             WORD attr = col;
-            SetConsoleTextAttribute(handle[active_buffer], attr);
+            SetConsoleTextAttribute(handle, attr);
 		}
 
-		void swap()
+		void refresh_region(short t, short l, short w, short h)
+		{
+			SMALL_RECT region;
+			region.Top = 0;
+			region.Left = 0;
+			region.Bottom = HEIGHT-1;
+			region.Right = WIDTH-1;
+			COORD tl;
+			tl.X = t;
+			tl.Y = l;
+			COORD wh;
+			wh.X = w;
+			wh.Y = h;
+			WriteConsoleOutput(handle,
+							   buffer.ptr,
+							   wh,
+							   tl,
+							   &region);
+		}
+
+		void refresh()
 		{
 			SMALL_RECT region;
 			region.Top = 0;
@@ -169,13 +173,12 @@ version(Windows)
 			COORD wh;
 			wh.X = WIDTH;
 			wh.Y = HEIGHT;
-			WriteConsoleOutput(handle[active_buffer],
-							   buffer.ptr,
-							   tl,
+			CHAR_INFO* pt = buffer.ptr;
+			WriteConsoleOutputA(handle,
+							   pt,
 							   wh,
+							   tl,
 							   &region);
-			SetConsoleActiveScreenBuffer(handle[active_buffer]);
-			active_buffer ^= 1;
 		}
 	}
 

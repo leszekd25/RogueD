@@ -15,7 +15,7 @@ int main()
 	while(true)
 	{
 		s.HandleNetworking();
-		Thread.sleep( dur!("msecs")( 1000 ) );
+		Thread.sleep( dur!("msecs")( 33 ) );
 		//writeln("Step of 1 sec");
 		i+=1;
 	}

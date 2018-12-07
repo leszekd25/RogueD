@@ -9,9 +9,10 @@ import GameInstance;
 
 struct GClientData
 {
-	bool alive = false;
+	bool alive = false;      //if this is false, the slot can be replaced by new connection
 	InternetAddress address;
 	Socket client;
+	int current_player = -1; //player id currently owned by this client
 	Queue!(ubyte[]) send_queue;
 	Queue!(Message) recv_queue;
 }
@@ -24,6 +25,7 @@ class GServer
 	TcpSocket listener;
 	GameInstance[] games; int max_game_id = 0;
 	GlobalPlayer[] players; int max_player_id = 0;
+	int[string] name_to_player;  //index for searching player ids by name
 
 	this()
 	{
@@ -36,6 +38,8 @@ class GServer
 		//listener.setOption(SocketOptionLevel.TCP, SocketOption.RCVBUF, BUFFER_SIZE);
 		listener.listen(10);
 		writefln("Created server");
+
+		CreateGame();
 	}
 
 	/// Game manipulation stuff goes here--------------------------------------------------------
@@ -46,7 +50,7 @@ class GServer
 		games ~= new GameInstance();
 		games[max_game_id].ID = max_game_id;
 		max_game_id++;
-		writefln("Created game ID ", max_game_id-1);
+		writefln("Created game ID %d", max_game_id-1);
 	}
 
 	void DeleteGame(int game_id)
@@ -66,7 +70,7 @@ class GServer
 		assert(g.players_in_game.length == 0, "Error deleting game: Could not remove all players!");
 
 		g.deleted = true;
-		writefln("Removed game ID ", game_id);
+		writefln("Removed game ID %d", game_id);
 	}
 
 	// Player manipulation goes here--------------------------------------------------------------
@@ -77,8 +81,9 @@ class GServer
 		players[max_player_id].name = n;
 		players[max_player_id].password = p;
 		players[max_player_id].ID = max_player_id;
+		name_to_player[n] = max_player_id;
 		max_player_id++;
-		writefln("Created player ID ", max_player_id-1);
+		writefln("Created player ID %d", max_player_id-1);
 	}
 
 	void DeletePlayer(int p_id)
@@ -87,6 +92,7 @@ class GServer
 		assert(!p.deleted, "Error deleting player: Player already deleted!");
 		assert(!(p.isPlaying), "Error deleting player: Player in game!");
 		players[p_id].deleted = true;
+		name_to_player.remove(players[p_id].name);
 	}
 
 	void PlayerJoinGame(int p_id, int g_id)
@@ -128,9 +134,14 @@ class GServer
 
 	void DropConnection(int c_id)
 	{
-		Message msg = {MessageType.DISCONNECT};
+		Message msg = new Message(MessageType.DISCONNECT);
 		clients[c_id].send_queue.push(MessageToBuffer(msg));
 		clients[c_id].alive = false;
+	}
+
+	void SendClientMessage(Message msg, int c_id)
+	{
+		clients[c_id].send_queue.push(MessageToBuffer(msg));
 	}
 
 	void HandleNetworking()
@@ -162,11 +173,7 @@ class GServer
 				clients[next_empty].send_queue = new Queue!(ubyte[])();
 				clients[next_empty].recv_queue = new Queue!(Message)();
 
-
 				writefln("Accepted and created a connection, client ID %d", next_empty);
-				CreateGame();
-				CreatePlayer("Sampl txt", "pass135");
-				PlayerJoinGame(0, 0);
 			}
 		}
 		// 2. data manip
@@ -193,22 +200,68 @@ class GServer
 					break;
 				}
 
-				//writefln("RECEIVED DATA FROM C_ID", i);
 				ubyte[] buffer = new ubyte[header[0]];
 				int data_length = clients[i].client.receive(buffer[]);
 				assert(header[0] == data_length);
+				for(int j = 0; j < data_length; j++)
+					writef("%d ", buffer[j]);
 
 				Message msg = BufferToMessage(buffer);
-				clients[i].recv_queue.push(msg);
-
+				bool msg_pushed = false;
+				//writefln("RECEIVED DATA FROM C_ID %u %u", i, (msg).msg_t);
 				//process data
-				if(msg.msg_t == MessageType.DISCONNECT)
+				switch((msg).msg_t)
 				{
-					DropConnection(i);
-					writeln("DROPPING CONNECTION C_ID ", i);
-					PlayerLeaveGame(0);
+					case MessageType.EXIT:
+						DropConnection(i);
+						writeln("CLIENT C_ID %d EXIT REQUEST", i);
+						PlayerLeaveGame(0);  // change this!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+						break;
+					case MessageType.REGISTER:
+						LogInMessage msg_ok = cast(LogInMessage)msg;
+						int* p_id = ((msg_ok).name in name_to_player);
+						if(p_id is null)
+						{
+							CreatePlayer((msg_ok).name, (msg_ok).password);
+							SendClientMessage(new Message(MessageType.REGISTER_OK), i);
+						}
+						else
+						{
+							SendClientMessage(new Message(MessageType.REGISTER_FAILED), i);
+						}
+						break;
+					case MessageType.LOG_IN:
+						if(clients[i].current_player != -1)
+						{
+							SendClientMessage(new Message(MessageType.LOG_IN_FAILED), i);
+							break;
+						}
+						LogInMessage msg_ok = cast(LogInMessage)msg;
+						int* p_id = ((msg_ok).name in name_to_player);
+						if(p_id !is null)
+						{
+							if(players[*p_id].password == (msg_ok).password)
+							{
+								clients[i].current_player = *p_id;
+								SendClientMessage(new Message(MessageType.LOG_IN_OK), i);
+								break;
+							}
+						}
+						SendClientMessage(new Message(MessageType.LOG_IN_FAILED), i);
+						break;
+					case MessageType.LOG_OUT:
+						clients[i].current_player = -1;
+						SendClientMessage(new Message(MessageType.LOG_OUT_OK), i);
+						break;
+					default:
+						clients[i].recv_queue.push(msg);
+						msg_pushed = true;
+						break;
 				}
+				if(!msg_pushed)
+					msg.destroy();
 			}
+			// game step
 			// send loop
 			while(true)
 			{
@@ -230,5 +283,6 @@ class GServer
 			}
 		}
 		// 3. game forward
+		//also remove messages from here
 	}
 }

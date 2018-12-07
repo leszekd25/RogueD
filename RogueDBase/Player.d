@@ -17,7 +17,7 @@ class GlobalPlayer
 // this is for gaming
 class Player
 {
-	int ID;
+	int ID;    // same as global player
 	int gameID = -1;
 	ulong unitID = -1;
 }
