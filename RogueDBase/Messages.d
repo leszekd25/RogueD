@@ -3,12 +3,15 @@ module Messages;
 import std.bitmanip;
 import std.stdio;
 import utility.Geometry;
+import  Cell;
+import Entity;
 
 enum MessageType
 {
 	DISCONNECT, EXIT, PING,
 	SPAWN_UNIT, 
 	LOG_IN, LOG_OUT, LOG_OUT_OK, LOG_OUT_FAILED, LOG_IN_FAILED, LOG_IN_OK,
+	READY_TO_LOAD_LEVEL, LEVEL_DATA,
 	REGISTER, REGISTER_FAILED, REGISTER_OK,
 	ERROR
 }
@@ -100,6 +103,18 @@ class ErrorMessage: Message
 	}
 }
 
+class LevelDataMessage: Message
+{
+	import Level;
+	Level data;
+
+	this(Level l)
+	{
+		msg_t = MessageType.LEVEL_DATA;
+		data = l;
+	}
+}
+
 Message BufferToMessage(ubyte[] buf)
 {
 	string data_to_str(ubyte[] b)
@@ -123,17 +138,44 @@ Message BufferToMessage(ubyte[] buf)
 			msg.Message.msg_t = msg_t;
 			break;
 		case MessageType.ERROR:
-			msg_t = buf.read!MessageType();
 			string er = data_to_str(buf);
 			msg = cast(Message)(new ErrorMessage(er));
 			msg.Message.msg_t = msg_t;
 			break;
 		case MessageType.SPAWN_UNIT:
-			msg_t = buf.read!MessageType();
 			short x = buf.read!short();
 			short y = buf.read!short();
 			ulong sid = buf.read!ulong();
 			msg = cast(Message)(new SpawnUnitMessage(Point(x, y), sid));
+			msg.Message.msg_t = msg_t;
+			break;
+		case MessageType.LEVEL_DATA:
+			import Level;
+			Level l = new Level();
+			l.map_size = Point(0, 0);
+			l.map_size.X = buf.read!short();
+			l.map_size.Y = buf.read!short();
+			writefln("SIZE %d %d",l.map_size.X, l.map_size.Y);
+			l.map.length = l.map_size.X*l.map_size.Y;
+			for(int i = 0; i < l.map.length; i++)
+			{
+				l.map[i].glyph.symbol = buf.read!char();
+				l.map[i].glyph.color = buf.read!ushort();
+				l.map[i].flags = buf.read!CellFlags();
+				l.map[i].movement_cost = buf.read!int();
+			}
+			int unit_count = buf.read!int();
+			for(int i = 0; i < unit_count; i++)
+			{
+				ulong u_id = buf.read!ulong();
+				l.units[u_id] = new Unit();
+				l.units[u_id].ID = u_id;
+				l.units[u_id].glyph.symbol = buf.read!char();
+				l.units[u_id].glyph.color = buf.read!ushort();
+				l.units[u_id].position.X = buf.read!short();
+				l.units[u_id].position.Y = buf.read!short();
+			}
+			msg = cast(Message)(new LevelDataMessage(l));
 			msg.Message.msg_t = msg_t;
 			break;
 		default:
@@ -172,6 +214,7 @@ ubyte[] MessageToBuffer(Message msg)
 		case MessageType.REGISTER:
 			LogInMessage msg_ok = cast(LogInMessage)msg;
 			buf.length = 4+(msg_ok).name.length+(msg_ok).password.length+4;   // move to msg method?
+
 			buf.write!MessageType((msg_ok).msg_t, 0);
 			next_pos = str_to_data((msg_ok).name, buf, next_pos+4);
 			next_pos = str_to_data((msg_ok).password, buf, next_pos);
@@ -182,6 +225,33 @@ ubyte[] MessageToBuffer(Message msg)
 
 			buf.write!MessageType((msg_ok).Message.msg_t, 0);
 			next_pos = str_to_data((msg_ok).error, buf, next_pos+4);
+			break;
+		case MessageType.LEVEL_DATA:
+			LevelDataMessage msg_ok = cast(LevelDataMessage)msg;
+			buf.length = 4+4+(msg_ok).data.map.length*11+4+(msg_ok).data.units.length*15;
+
+			buf.write!MessageType((msg_ok).msg_t, 0);
+			buf.write!short((msg_ok).data.map_size.X, 4);
+			buf.write!short((msg_ok).data.map_size.Y, 6);
+			int off1 = 8+(msg_ok).data.map.length*11;
+			for(int i = 0; i < (msg_ok).data.map.length; i++)
+			{
+				buf.write!char((msg_ok).data.map[i].glyph.symbol, 8+i*11);
+				buf.write!ushort((msg_ok).data.map[i].glyph.color, 8+i*11+1);
+				buf.write!CellFlags((msg_ok).data.map[i].flags, 8+i*11+3);
+				buf.write!int((msg_ok).data.map[i].movement_cost, 8+i*11+7);
+			}
+			buf.write!int((msg_ok).data.units.length, off1);
+			int off2 = 0;
+			foreach(u; (msg_ok).data.units.values)
+			{
+				buf.write!ulong(u.ID, off1+4+off2);
+				buf.write!char(u.glyph.symbol, off1+4+off2+8);
+				buf.write!ushort(u.glyph.color, off1+4+off2+9);
+				buf.write!short(u.position.X, off1+4+off2+11);
+				buf.write!short(u.position.Y, off1+4+off2+13);
+				off2 += 15;
+			}
 			break;
 		default:
 			buf.length = 4;

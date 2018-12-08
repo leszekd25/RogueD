@@ -2,11 +2,13 @@ module GameInstance;
 
 import Level;
 import Player;
+import utility.ConIO;
+
+import utility.Geometry;
 
 class GameInstance
 {
 	bool deleted = false;
-	int ID;
 	ulong global_step = 0;
 	Level base_level;   //base level which every player starts from
 	Player[int] players_in_game;
@@ -20,16 +22,20 @@ class GameInstance
 
 	void AddPlayerToGame(GlobalPlayer p)
 	{
+		//add player to game
 		Player pl = new Player();
 		pl.ID = p.ID;
-		pl.gameID = ID;
 		pl.unitID = max_unit_id;
-
-		base_level.AddUnitToLevel(base_level.starting_point, max_unit_id);
-
 		players_in_game[pl.ID] = pl;
 
-		p.gameID = ID;
+		//create unit for player
+		//remporary: only base level supported
+		Point st_pos = p.lastPosition;
+		if(st_pos.X == -1)
+			st_pos = base_level.starting_point;
+		base_level.AddUnitToLevel(st_pos, max_unit_id);
+		base_level.units[max_unit_id-1].glyph.symbol = '@';
+		base_level.units[max_unit_id-1].glyph.set_color(FColor.white);
 	}
 
 	/// remove player from this instance
@@ -37,14 +43,12 @@ class GameInstance
 	{
 		Player* p = (p_id in players_in_game);
 		assert(p !is null, "Error: Can't remove player from the game: No player found!");
-		assert((*p).gameID == ID, "Error: Can't remove player from the game: ID mismatch!!");
 
 		//remove character from the map
 		// temporary: only base_level supported
 		base_level.RemoveUnitFromLevel((*p).unitID);
 
+		players_in_game[p_id].destroy();
 		players_in_game.remove(p_id);
-
-		(*p).gameID = -1;
 	}
 }

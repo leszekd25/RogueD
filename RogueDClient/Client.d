@@ -8,6 +8,7 @@ import core.time;
 import utility.ConIO: FColor, BColor;
 import ClientGameView:ClientGameView,LogMessageType;
 import ClientGameInstance;
+import std.format: format;
 
 interface INetClient
 {
@@ -161,7 +162,8 @@ class TCPGClient: INetClient
 
 					ubyte[] buffer = new ubyte[next_length[0]];
 					int data_length = server.receive(buffer[]);
-					assert(recv_data == data_length);
+
+					assert(next_length[0] == data_length);
 					//process data
 					Message msg = BufferToMessage(buffer);
 					MessageType msg_t = msg.msg_t;
@@ -177,6 +179,7 @@ class TCPGClient: INetClient
 							break;
 						case MessageType.LOG_IN_OK:
 							ClientGameView.gameLog.Write("Login successful", FColor.brightGreen, LogMessageType.SERVER);
+							SendMessage(new Message(MessageType.READY_TO_LOAD_LEVEL));
 							logged_in = true;
 							break;
 						case MessageType.LOG_IN_FAILED:

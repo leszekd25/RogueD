@@ -13,7 +13,7 @@ int main()
     writeln("Hello D World!\n");
 
 	TCPGClient c = new TCPGClient();
-	ClientGameInstance g = new ClientGameInstance(80, 25);
+	ClientGameInstance g = new ClientGameInstance();
 	ClientGameView.game = &g;
 	c.game = &g;
 

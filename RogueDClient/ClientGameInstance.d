@@ -1,6 +1,7 @@
 module ClientGameInstance;
 
 import Cell;
+import Level;
 import Entity;
 import Messages;
 import ClientGameView:ClientGameView;
@@ -18,35 +19,28 @@ exit: exit program
 
 class ClientGameInstance
 {
-	Cell[] map;
-	Point size;
-	Unit[ulong] units;
+	Level level = null;
 	Queue!(Message) messages_out = new Queue!(Message)();
 	Queue!(Message) messages_in = new Queue!(Message)();
 
-	this(short w, short h)
-	{
-		size = Point(w, h);
-		map = new Cell[h*w];
-	}
-
-	~this()
-	{
-		map.destroy();
-	}
-
-	int point_to_map(Point coord)
-	{
-		return coord.Y*size.X+coord.X;
-	}
-
-	ref Cell get_cell(Point p)
-	{
-		return map[point_to_map(p)];
-	}
-
 	PROCESS_RESULT ProcessMessages()
 	{
+		while(!(messages_in.empty))
+		{
+			Message msg = messages_in.pop();
+			MessageType msg_t = msg.msg_t;
+
+			switch(msg_t)
+			{
+				case MessageType.LEVEL_DATA:
+					LevelDataMessage msg_ok = cast(LevelDataMessage)msg;
+					level = msg_ok.data;
+					break;
+				default:
+					break;
+			}
+		}
+
 		PROCESS_RESULT result;
 		if(kbhit() > 0)
 		{

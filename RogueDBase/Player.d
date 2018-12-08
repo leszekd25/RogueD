@@ -1,5 +1,6 @@
 module Player;
 
+import utility.Geometry;
 import Entity;
 
 /// this is for database
@@ -11,13 +12,13 @@ class GlobalPlayer
 	string password;
 	bool isPlaying = false;
 	// level persistence data
-	int gameID = -1;
+	int levelID = -1;     //-1 = base level
+	Point lastPosition = Point(-1, -1);
 }
 
 // this is for gaming
 class Player
 {
 	int ID;    // same as global player
-	int gameID = -1;
 	ulong unitID = -1;
 }

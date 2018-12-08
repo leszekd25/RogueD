@@ -23,12 +23,14 @@ class GServer
 	GClientData[MAX_CONNECTIONS] clients;
 	InternetAddress address;
 	TcpSocket listener;
-	GameInstance[] games; int max_game_id = 0;
+	GameInstance game;
 	GlobalPlayer[] players; int max_player_id = 0;
 	int[string] name_to_player;  //index for searching player ids by name
 
 	this()
 	{
+		game = new GameInstance();
+
 		address = new InternetAddress(DEFAULT_PORT);
 		listener = new TcpSocket();
 		assert(listener.isAlive, "Error creating server");
@@ -39,38 +41,8 @@ class GServer
 		listener.listen(10);
 		writefln("Created server");
 
-		CreateGame();
-	}
-
-	/// Game manipulation stuff goes here--------------------------------------------------------
-
-	void CreateGame()
-	{
-		// todo: find empty slot for games
-		games ~= new GameInstance();
-		games[max_game_id].ID = max_game_id;
-		max_game_id++;
-		writefln("Created game ID %d", max_game_id-1);
-	}
-
-	void DeleteGame(int game_id)
-	{
-		// check first if there are any active players in game
-		GameInstance g = games[game_id];
-		assert(!g.deleted, "Error deleting game: Game already deleted!");
-		//assert(g !is null, "Error deleting game: No game found!");
-
-		if(g.players_in_game.length > 0)
-		{
-			foreach (p_id; g.players_in_game.keys)
-			{
-				PlayerLeaveGame(p_id);
-			}
-		}
-		assert(g.players_in_game.length == 0, "Error deleting game: Could not remove all players!");
-
-		g.deleted = true;
-		writefln("Removed game ID %d", game_id);
+		game = new GameInstance();
+		game.base_level.Test();
 	}
 
 	// Player manipulation goes here--------------------------------------------------------------
@@ -95,17 +67,14 @@ class GServer
 		name_to_player.remove(players[p_id].name);
 	}
 
-	void PlayerJoinGame(int p_id, int g_id)
+	void PlayerJoinGame(int p_id)
 	{
 		GlobalPlayer p = players[p_id];
-		GameInstance g = games[g_id];
 		assert(!p.deleted, "Error joining game: Player deleted!");
 		assert(!p.isPlaying, "Error joining game: Player already in game!");
-		assert(!g.deleted, "Error joining game: Game deleted!");
 
 		p.isPlaying = true;
-		g.AddPlayerToGame(p);
-		assert(p.gameID == g_id, "Error joining game: ID mismatch!");
+		game.AddPlayerToGame(p);
 	}
 
 	void PlayerLeaveGame(int p_id)
@@ -113,13 +82,9 @@ class GServer
 		GlobalPlayer p = players[p_id];
 		assert(!p.deleted, "Error leaving game: Player deleted!");
 		assert(p.isPlaying, "Error leaving game: Player not in game!");
-		assert(p.gameID >= 0, "Error leaving game: Broken game ID!");
-		GameInstance g = games[p.gameID];
-		assert(!g.deleted, "Error leaving game: Game deleted!");
 
-		g.RemovePlayerFromGame(p_id);
+		game.RemovePlayerFromGame(p_id);
 		p.isPlaying = false;
-		p.gameID = -1;
 	}
 
 	//--------------------------------------------------------------------------------------------
@@ -203,10 +168,9 @@ class GServer
 				ubyte[] buffer = new ubyte[header[0]];
 				int data_length = clients[i].client.receive(buffer[]);
 				assert(header[0] == data_length);
-				for(int j = 0; j < data_length; j++)
-					writef("%d ", buffer[j]);
 
 				Message msg = BufferToMessage(buffer);
+				//writefln("RECV %d", data_length);
 				bool msg_pushed = false;
 				//writefln("RECEIVED DATA FROM C_ID %u %u", i, (msg).msg_t);
 				//process data
@@ -215,7 +179,7 @@ class GServer
 					case MessageType.EXIT:
 						DropConnection(i);
 						writeln("CLIENT C_ID %d EXIT REQUEST", i);
-						PlayerLeaveGame(0);  // change this!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+						PlayerLeaveGame(clients[i].current_player);
 						break;
 					case MessageType.REGISTER:
 						LogInMessage msg_ok = cast(LogInMessage)msg;
@@ -243,6 +207,7 @@ class GServer
 							if(players[*p_id].password == (msg_ok).password)
 							{
 								clients[i].current_player = *p_id;
+								PlayerJoinGame(*p_id);
 								SendClientMessage(new Message(MessageType.LOG_IN_OK), i);
 								break;
 							}
@@ -253,6 +218,14 @@ class GServer
 						clients[i].current_player = -1;
 						SendClientMessage(new Message(MessageType.LOG_OUT_OK), i);
 						break;
+
+					case MessageType.READY_TO_LOAD_LEVEL:
+						//determine which level to load (for now, only base level (-1))
+						LevelDataMessage msg_ok = new LevelDataMessage(game.base_level);
+						msg_ok.Message.msg_t = MessageType.LEVEL_DATA;
+						SendClientMessage(cast(Message)msg_ok, i);
+						break;
+
 					default:
 						clients[i].recv_queue.push(msg);
 						msg_pushed = true;
@@ -278,6 +251,8 @@ class GServer
 				}
 
 				int snd_sent = clients[i].client.send(msg);
+
+				//writefln("SEND %d %d", msg.length, snd_sent);
 				assert(snd_sent == msg.length);
 
 			}

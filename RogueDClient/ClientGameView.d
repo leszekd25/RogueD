@@ -5,6 +5,7 @@ import utility.ConIO;
 import ClientGameInstance;
 import Entity;
 import utility.Geometry;
+import Cell;
 
 enum LogMessageType {SERVER, CLIENT}
 
@@ -83,8 +84,19 @@ static class ClientGameView
 		for(int i = 0; i <= msg_num; i++)
 		{
 			LogMessage mss = gameLog.messages[msg_num-i+msg_off];
-			(*con).put(0, 25+msg_num-i, mss.msg);  //temp  10, should be 25
+			(*con).put(0, 25+msg_num-i, mss.msg);
 		}
+	}
+
+	static void DrawMap()
+	{
+		Cell[] map = (*game).level.map;
+		Point map_size = (*game).level.map_size;
+		for(int y = 0; y < 25; y++)
+			for(int x = 0; x < 60; x++)
+				(*con).put(x, y, map[y*map_size.X+x].glyph.symbol, map[y*map_size.X+x].glyph.color);
+		foreach(u; (*game).level.units)
+			(*con).put(u.position.X, u.position.Y, u.glyph.symbol, u.glyph.color);
 	}
 
 	static void FrameEnd()
@@ -95,6 +107,8 @@ static class ClientGameView
 
 	static void DrawFrame()
 	{
+		if((*game).level !is null)
+			DrawMap();
 		DrawMessages();
 		FrameEnd();
 	}

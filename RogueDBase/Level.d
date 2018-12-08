@@ -12,16 +12,17 @@ class Level
 	ulong step = 0;  //level local time
 	short delay_multiplier = 100; // base multiplier, the higher it is, the slower the entities relative to baseline
 	Unit[ulong] units;
-	Cell[80][25] map;
+	Point map_size;
+	Cell[] map;    // change to 2D
 	Point starting_point;
 
-	this()
+	void Test()
 	{
-		for(int i = 0; i < 25; i++)
-			for(int j = 0; j < 80; j++)
-			{
-				map[i][j].glyph = Glyph('.', FColor.lightGray);
-			}
+		map_size = Point(100, 50);
+		int wh = map_size.X*map_size.Y;
+		map.length = wh;
+		for(int i = 0; i < wh; i++)
+			map[i].glyph = Glyph('.', FColor.lightGray);
 		starting_point = Point(10, 10);
 	}
 

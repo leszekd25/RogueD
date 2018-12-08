@@ -7,8 +7,8 @@ extern (C) int kbhit();       // the conio function is in the DMD library
 extern (C) int getch();       // as is his friend getch 
 extern (C) int isatty(int);
 
-enum WIDTH=32;
-enum HEIGHT=100;
+enum WIDTH=100;
+enum HEIGHT=33;
 enum WH = WIDTH*HEIGHT;
 
 enum FColor : ubyte

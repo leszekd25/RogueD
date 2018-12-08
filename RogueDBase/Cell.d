@@ -18,6 +18,11 @@ struct Glyph
 	{
 		return cast(BColor)(color >> 4);
 	}
+
+	void set_color(FColor f, BColor b = BColor.black)
+	{
+		color = cast(ushort) (cast(int)f+(((cast(int)b) << 8)));
+	}
 }
 
 struct Cell
