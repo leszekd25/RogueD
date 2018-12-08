@@ -9,12 +9,15 @@ import Entity;
 enum MessageType
 {
 	DISCONNECT, EXIT, PING,
-	SPAWN_UNIT, 
 	LOG_IN, LOG_OUT, LOG_OUT_OK, LOG_OUT_FAILED, LOG_IN_FAILED, LOG_IN_OK,
 	READY_TO_LOAD_LEVEL, LEVEL_DATA,
 	REGISTER, REGISTER_FAILED, REGISTER_OK,
+	MOVE_ACTION, ATTACK_ACTION, SPELL_ACTION,
+	SPAWN_UNIT, UNIT_MOVED, UNIT_DAMAGED, UNIT_HEALED, UNIT_SPAWN_EFFECT, UNIT_DESPAWN_EFFECT,
+	LOCAL_MESSAGE, PARTY_MESSAGE, PLAYER_MESSAGE, SERVER_MESSAGE,
 	ERROR
 }
+
 /*
 pattern:
 -connect
@@ -57,13 +60,10 @@ class Message  // base type message
 
 class SpawnUnitMessage: Message
 {
+	//todo: replace with Unit
 	Point position;
 	ulong server_unitID;
 	// creature data
-	this()
-	{
-
-	}
 
 	this(Point p, ulong sid)
 	{
@@ -78,11 +78,6 @@ class LogInMessage: Message
 {
 	string name;
 	string password;
-
-	this()
-	{
-
-	}
 
 	this(string n, string p)
 	{
@@ -112,6 +107,31 @@ class LevelDataMessage: Message
 	{
 		msg_t = MessageType.LEVEL_DATA;
 		data = l;
+	}
+}
+
+
+class MoveActionMessage: Message
+{
+	Direction dir;
+
+	this(Direction d)
+	{
+		msg_t = MessageType.MOVE_ACTION;
+		dir = d;
+	}
+}
+
+class UnitMovedMessage: Message
+{
+	ulong u_id;
+	Point pos;
+
+	this(ulong u, Point p)
+	{
+		u_id = u;
+		pos = p;
+		msg_t = MessageType.UNIT_MOVED;
 	}
 }
 
@@ -176,6 +196,19 @@ Message BufferToMessage(ubyte[] buf)
 				l.units[u_id].position.Y = buf.read!short();
 			}
 			msg = cast(Message)(new LevelDataMessage(l));
+			msg.Message.msg_t = msg_t;
+			break;
+		case MessageType.MOVE_ACTION:
+			Direction d = buf.read!Direction();
+			msg = cast(Message)(new MoveActionMessage(d));
+			msg.Message.msg_t = msg_t;
+			break;
+		case MessageType.UNIT_MOVED:
+			ulong u = buf.read!ulong();
+			Point p;
+			p.X = buf.read!short();
+			p.Y = buf.read!short();
+			msg = cast(Message)(new UnitMovedMessage(u, p));
 			msg.Message.msg_t = msg_t;
 			break;
 		default:
@@ -252,6 +285,21 @@ ubyte[] MessageToBuffer(Message msg)
 				buf.write!short(u.position.Y, off1+4+off2+13);
 				off2 += 15;
 			}
+			break;
+		case MessageType.MOVE_ACTION:
+			MoveActionMessage msg_ok = cast(MoveActionMessage)msg;
+			buf.length = 8;
+			buf.write!MessageType((msg_ok).msg_t, 0);
+			buf.write!Direction((msg_ok).dir, 4);
+			break;
+
+		case MessageType.UNIT_MOVED:
+			UnitMovedMessage msg_ok = cast(UnitMovedMessage)msg;
+			buf.length = 16;
+			buf.write!MessageType((msg_ok).msg_t, 0);
+			buf.write!ulong((msg_ok).u_id, 4);
+			buf.write!short((msg_ok).pos.X, 12);
+			buf.write!short((msg_ok).pos.Y, 14);
 			break;
 		default:
 			buf.length = 4;

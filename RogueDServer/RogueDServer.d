@@ -11,13 +11,15 @@ int main()
     writeln("Hello D World!\n");
 
 	GServer s = new GServer();
-	int i = 0;
 	while(true)
 	{
-		s.HandleNetworking();
+		s.HandleNetworkingState();
+		s.HandleNetworkingInput();
+		s.game.ProcessInput();
+		s.game.ProcessStep();
+		s.HandleNetworkingOutput();
 		Thread.sleep( dur!("msecs")( 33 ) );
 		//writeln("Step of 1 sec");
-		i+=1;
 	}
 
     return 0;

@@ -4,10 +4,11 @@ import Cell;
 import Level;
 import Entity;
 import Messages;
-import ClientGameView:ClientGameView;
+import GameLog;
 import Connections: Queue;
 import utility.ConIO;
 import utility.Geometry;
+import std.format:format;
 
 enum PROCESS_RESULT {OK, CONNECT, DISCONNECT, EXIT}
 /*
@@ -16,6 +17,23 @@ connect: connect to server
 disconnect: drop connection
 exit: exit program
 */
+
+const Direction[char] move_keys;
+
+static this()
+{
+	move_keys = 
+	[
+		77: Direction.E,
+		81: Direction.SE,
+		80: Direction.S,
+		79: Direction.SW,
+		75: Direction.W,
+		71: Direction.NW,
+		72: Direction.N,
+		73: Direction.NE
+	];
+}
 
 class ClientGameInstance
 {
@@ -36,16 +54,33 @@ class ClientGameInstance
 					LevelDataMessage msg_ok = cast(LevelDataMessage)msg;
 					level = msg_ok.data;
 					break;
+				case MessageType.UNIT_MOVED:
+					UnitMovedMessage msg_ok = cast(UnitMovedMessage)msg;
+					level.units[msg_ok.u_id].position = msg_ok.pos;
+					break;
 				default:
 					break;
 			}
 		}
 
 		PROCESS_RESULT result;
-		if(kbhit() > 0)
+		char[2] keycode;
+		int keys_pressed = 0;
+		for(int i = 0; i < 2; i++)
 		{
-			char c = cast(char)getch();
-			switch(c)
+			if(kbhit() <= 0)
+				break;
+			keycode[i] = cast(char)getch();
+			keys_pressed = i+1;
+		}
+		assert(keys_pressed != 1);
+		if(keys_pressed == 0)
+			return PROCESS_RESULT.OK;
+		
+		if(keycode[0]!=0)
+		{
+			//Log.Write(format!"char1 id %d"(cast(int)(keycode[0])));
+			switch(keycode[0])
 			{
 				case 'x':
 					// register
@@ -70,6 +105,26 @@ class ClientGameInstance
 				case ';':
 					// disconnect
 					result = PROCESS_RESULT.DISCONNECT;
+					break;
+				default:
+					break;
+			}
+		}
+		else 
+		{
+			//Log.Write(format!"char2 id %d"(cast(int)(keycode[1])));
+			switch(keycode[1])
+			{
+				case 71:
+				case 72:
+				case 73:
+				case 75:
+				case 77:
+				case 79:
+				case 80:
+				case 81:
+					MoveActionMessage msg = new MoveActionMessage(move_keys[keycode[1]]);
+					messages_out.push(cast(Message)msg);
 					break;
 				default:
 					break;

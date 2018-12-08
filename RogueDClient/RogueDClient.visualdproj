@@ -868,6 +868,7 @@
   <File path="Client.d" />
   <File path="ClientGameInstance.d" />
   <File path="ClientGameView.d" />
+  <File path="GameLog.d" />
   <File path="RogueDClient.d" />
  </Folder>
 </DProject>

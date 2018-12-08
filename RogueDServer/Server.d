@@ -10,34 +10,30 @@ import GameInstance;
 struct GClientData
 {
 	bool alive = false;      //if this is false, the slot can be replaced by new connection
+	bool end_connection = false;  //set to true to end connection
 	InternetAddress address;
-	Socket client;
+	Socket client;           //connection socket
 	int current_player = -1; //player id currently owned by this client
 	Queue!(ubyte[]) send_queue;
-	Queue!(Message) recv_queue;
 }
 
 class GServer
 {
-	ulong server_time;
-	GClientData[MAX_CONNECTIONS] clients;
-	InternetAddress address;
 	TcpSocket listener;
 	GameInstance game;
+
+	GClientData[MAX_CONNECTIONS] clients;
 	GlobalPlayer[] players; int max_player_id = 0;
 	int[string] name_to_player;  //index for searching player ids by name
 
 	this()
 	{
 		game = new GameInstance();
-
-		address = new InternetAddress(DEFAULT_PORT);
+		
 		listener = new TcpSocket();
 		assert(listener.isAlive, "Error creating server");
 		listener.blocking = false;
-		listener.bind(address);
-		//listener.setOption(SocketOptionLevel.TCP, SocketOption.SNDBUF, BUFFER_SIZE);
-		//listener.setOption(SocketOptionLevel.TCP, SocketOption.RCVBUF, BUFFER_SIZE);
+		listener.bind(new InternetAddress(DEFAULT_PORT));
 		listener.listen(10);
 		writefln("Created server");
 
@@ -52,7 +48,7 @@ class GServer
 		players ~= new GlobalPlayer();
 		players[max_player_id].name = n;
 		players[max_player_id].password = p;
-		players[max_player_id].ID = max_player_id;
+		players[max_player_id].ID = max_player_id;   //player stores its own key
 		name_to_player[n] = max_player_id;
 		max_player_id++;
 		writefln("Created player ID %d", max_player_id-1);
@@ -101,7 +97,6 @@ class GServer
 	{
 		Message msg = new Message(MessageType.DISCONNECT);
 		clients[c_id].send_queue.push(MessageToBuffer(msg));
-		clients[c_id].alive = false;
 	}
 
 	void SendClientMessage(Message msg, int c_id)
@@ -109,7 +104,7 @@ class GServer
 		clients[c_id].send_queue.push(MessageToBuffer(msg));
 	}
 
-	void HandleNetworking()
+	void HandleNetworkingState()
 	{
 		// 1. listen for new connections
 		while(true)
@@ -136,16 +131,18 @@ class GServer
 				clients[next_empty].client = cl_socket;
 				clients[next_empty].alive = true;
 				clients[next_empty].send_queue = new Queue!(ubyte[])();
-				clients[next_empty].recv_queue = new Queue!(Message)();
 
 				writefln("Accepted and created a connection, client ID %d", next_empty);
 			}
 		}
+	}
+	void HandleNetworkingInput()
+	{
 		// 2. data manip
 		for(int i = 0; i < MAX_CONNECTIONS; i++)
 		{
 			if(clients[i].alive == false)
-				break;
+				continue;
 			// receive loop
 			while(true)
 			{
@@ -161,7 +158,7 @@ class GServer
 					//disconnect this socket
 					clients[i].client.close();
 					clients[i].alive = false;
-					writefln("Closed connection to client id %d", i);
+					writefln("Closed connection to client id %d (client side)", i);
 					break;
 				}
 
@@ -207,6 +204,7 @@ class GServer
 							if(players[*p_id].password == (msg_ok).password)
 							{
 								clients[i].current_player = *p_id;
+								players[*p_id].clientID = i;
 								PlayerJoinGame(*p_id);
 								SendClientMessage(new Message(MessageType.LOG_IN_OK), i);
 								break;
@@ -215,6 +213,7 @@ class GServer
 						SendClientMessage(new Message(MessageType.LOG_IN_FAILED), i);
 						break;
 					case MessageType.LOG_OUT:
+						players[clients[i].current_player].clientID = -1;
 						clients[i].current_player = -1;
 						SendClientMessage(new Message(MessageType.LOG_OUT_OK), i);
 						break;
@@ -227,15 +226,50 @@ class GServer
 						break;
 
 					default:
-						clients[i].recv_queue.push(msg);
-						msg_pushed = true;
+						if(clients[i].current_player != -1)
+						{
+							game.messages_in.push(new PlayerMsgWrapper(clients[i].current_player, msg));
+							msg_pushed = true;
+						}
 						break;
 				}
 				if(!msg_pushed)
 					msg.destroy();
 			}
-			// game step
+		}
+	}
 			// send loop
+	void HandleNetworkingOutput()
+	{
+		// 1. push all game messages to respective client queues
+		while(true)
+		{
+			if(game.messages_out.empty())
+				break;
+
+			PlayerMsgWrapper msg_out = game.messages_out.pop();
+			MessageType msg_t = msg_out.msg.msg_t;
+			int c_id = players[msg_out.playerID].clientID;
+			if(c_id!=-1)
+			{
+				ubyte[] msg = MessageToBuffer(msg_out.msg);
+				clients[c_id].send_queue.push(msg);
+
+			}
+			msg_out.destroy();
+
+			if(msg_t == MessageType.DISCONNECT)
+			{
+				clients[c_id].end_connection = true;
+			}
+
+		}
+		// 2. send all messages through clients
+		for(int i = 0; i < MAX_CONNECTIONS; i++)
+		{
+			if(clients[i].alive == false)
+				continue;
+
 			while(true)
 			{
 				if(clients[i].send_queue.empty())
@@ -256,8 +290,15 @@ class GServer
 				assert(snd_sent == msg.length);
 
 			}
+
+			if(clients[i].end_connection)
+			{
+				clients[i].end_connection = false;
+
+				clients[i].client.close();
+				clients[i].alive = false;
+				writefln("Closed connection to client id %d (server side)", i);
+			}
 		}
-		// 3. game forward
-		//also remove messages from here
 	}
 }

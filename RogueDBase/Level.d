@@ -6,11 +6,14 @@ import Cell;
 import utility.Geometry;
 import utility.ConIO: FColor, BColor;
 
+// todo: EVERYTHING by offsets, not by points!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// might be problematic for algorithms though
+
 class Level
 {
 	int ID;
 	ulong step = 0;  //level local time
-	short delay_multiplier = 100; // base multiplier, the higher it is, the slower the entities relative to baseline
+	int step_multiplier = 100; // base multiplier, the higher it is, the faster the entities relative to baseline
 	Unit[ulong] units;
 	Point map_size;
 	Cell[] map;    // change to 2D
@@ -46,5 +49,47 @@ class Level
 		//remove unit from the map
 		units[u_id].destroy();
 		units.remove(u_id);
+	}
+
+	Point toXY(int i) pure nothrow
+	{
+		return Point(cast(short)(i%map_size.X), cast(short)(i/map_size.X));
+	}
+
+	int toOffset(Point p) pure nothrow
+	{
+		return p.X+p.Y*map_size.X;
+	}
+
+	bool IsValidCell(int i)
+	{
+		return (i >= 0)&&(i < map.length);
+	}
+
+	bool IsValidCell(Point p)
+	{
+		return (p.X >= 0)&&(p.Y>=0)&&(p.X<map_size.X)&&(p.Y<map_size.Y);
+	}
+
+	bool CanMoveToCell(int i)
+	{
+		return (IsValidCell(i))&&((map[i].flags & CellFlags.blocksMovement) == 0);
+	}
+
+	bool CanMoveToCell(Point p)
+	{
+		return ((IsValidCell(p))&&(map[toOffset(p)].flags & CellFlags.blocksMovement) == 0);
+	}
+
+	void UnitMoveTo(ulong u_id, Point pos)
+	{
+		Unit u = units[u_id];
+		u.position = pos;
+	}
+
+	bool UnitCanDoAction(ulong u_id)
+	{
+		Unit u = units[u_id];
+		return u.next_action_time <= step;
 	}
 }
