@@ -39,6 +39,7 @@ static this()
 class ClientGameInstance
 {
 	Level level = null;
+	ulong player_unitID = -1;
 	ulong client_step = 0;
 	Queue!(Message) messages_out = new Queue!(Message)();
 	Queue!(Message) messages_in = new Queue!(Message)();
@@ -59,10 +60,14 @@ class ClientGameInstance
 					level = msg_ok.data;
 					ClientGameView.level = level;
 					ClientGameView.SetEntityFollow(cast(Entity)(level.units[msg_ok.player_unitID]));
+					ClientGameView.RequestMapRedraw();
+					player_unitID = msg_ok.player_unitID;
 					break;
 				case MessageType.UNIT_MOVED:
 					UnitMovedMessage msg_ok = cast(UnitMovedMessage)msg;
+					level.units[msg_ok.u_id].previous_position = level.units[msg_ok.u_id].position;
 					level.units[msg_ok.u_id].position = msg_ok.pos;
+					ClientGameView.EntityRedraw(cast(Entity)(level.units[msg_ok.u_id]));
 					break;
 				default:
 					break;

@@ -7,10 +7,11 @@ import Messages;
 import Client;
 import ClientGameInstance;
 import ClientGameView:ClientGameView;
+import GameLog;
 
 int main()
 {
-    writeln("Hello D World!\n");
+    //writeln("Hello D World!\n");
 
 	TCPGClient c = new TCPGClient();
 	ClientGameInstance g = new ClientGameInstance();
@@ -33,10 +34,10 @@ int main()
 		{
 			break;
 		}
+		ClientGameView.UpdateEntityState();
 		ClientGameView.DrawFrame();
 		c.HandleNetworkingOutput();
 		Thread.sleep( dur!("msecs")( 33 ) );
-		//writeln("Step of 1 sec");
 		i+=1;
 	}
 

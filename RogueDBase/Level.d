@@ -40,6 +40,7 @@ class Level
 		units[u_id].ID = u_id;
 		units[u_id].levelID = ID;
 		units[u_id].position = position;
+		units[u_id].previous_position = position;
 
 		u_id++;
 	}
@@ -88,6 +89,7 @@ class Level
 	void UnitMoveTo(ulong u_id, Point pos)
 	{
 		Unit u = units[u_id];
+		u.previous_position = u.position;
 		u.position = pos;
 	}
 

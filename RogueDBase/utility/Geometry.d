@@ -13,6 +13,11 @@ struct Point
 		static if(op == "+") return Point(cast(short)(X+rhs.X), cast(short)(Y+rhs.Y));
 		else static if(op == "-") return Point(cast(short)(X-rhs.X), cast(short)(Y-rhs.Y));
 	}
+	bool opEquals(const Point rhs) 
+	{
+		return(X==rhs.X)&&(X==rhs.Y);
+	}
+
 
 	/// Manhattan distance
 	short dist(Point p)

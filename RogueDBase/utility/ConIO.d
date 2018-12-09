@@ -1,6 +1,7 @@
 module utility.ConIO;
 
 import core.stdc.stdio;
+import std.algorithm.comparison;
 extern (C) void _STI_conio(); // initializes DM access ton conin, conout
 extern (C) void _STD_conio(); // properly closes handles
 extern (C) int kbhit();       // the conio function is in the DMD library
@@ -107,10 +108,30 @@ version(Windows)
 
 		}
 
+		void clear_region(short l, short t, short w, short h)
+		{
+			int max_x = min(l+w, WIDTH);
+			int max_y = min(t+h, HEIGHT);
+			for(int y = t; y < max_y; y++)
+				for(int x = l; x < max_x; x++)
+				{
+					int i = y*WIDTH+x;
+					buffer[i].Char.AsciiChar = ' ';
+					buffer[i].Attributes = 0;
+				}
+		}
+
 		void put(int x, int y, char c, ushort attr)
 		{
 			buffer[y*WIDTH+x].Char.AsciiChar = c;
 			buffer[y*WIDTH+x].Attributes = attr;
+		}
+
+		void put_instant(int x, int y, char c, ushort attr)
+		{
+			uint i;
+			WriteConsoleOutputCharacterA(handle, &c, 1, COORD(cast(short)x, cast(short)y), &i);
+			WriteConsoleOutputAttribute(handle, &attr, 1, COORD(cast(short)x, cast(short)y), &i);
 		}
 
 		void put(int x, int y, char[] s, ushort attr)
@@ -140,20 +161,20 @@ version(Windows)
             SetConsoleTextAttribute(handle, attr);
 		}
 
-		void refresh_region(short t, short l, short w, short h)
+		void refresh_region(short l, short t, short w, short h)
 		{
 			SMALL_RECT region;
-			region.Top = 0;
-			region.Left = 0;
-			region.Bottom = HEIGHT-1;
-			region.Right = WIDTH-1;
+			region.Top = t;
+			region.Left = l;
+			region.Bottom = cast(short)(t+h-1);
+			region.Right = cast(short)(l+w-1);
 			COORD tl;
-			tl.X = t;
-			tl.Y = l;
+			tl.X = l;
+			tl.Y = t;
 			COORD wh;
-			wh.X = w;
-			wh.Y = h;
-			WriteConsoleOutput(handle,
+			wh.X = WIDTH;
+			wh.Y = HEIGHT;
+			WriteConsoleOutputA(handle,
 							   buffer.ptr,
 							   wh,
 							   tl,

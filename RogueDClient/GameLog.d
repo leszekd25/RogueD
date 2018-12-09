@@ -1,6 +1,7 @@
 module GameLog;
 
 import utility.ConIO: FColor, BColor, CharInfo;
+import ClientGameView:ClientGameView;
 
 enum LogMessageType {SERVER, CLIENT}
 
@@ -43,5 +44,6 @@ static class Log  // todo: make static
 	{
 		messages~=LogMessage.FromString(msg, col);
 		messages[messages.length-1].mtype = mt;
+		ClientGameView.RequestLogRedraw();
 	}
 }

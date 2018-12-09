@@ -10,6 +10,7 @@ class Entity
 	int levelID;
 	Glyph glyph;
 	Point position;
+	Point previous_position;
 }
 
 class Unit: Entity

@@ -196,6 +196,7 @@ Message BufferToMessage(ubyte[] buf)
 				l.units[u_id].glyph.color = buf.read!ushort();
 				l.units[u_id].position.X = buf.read!short();
 				l.units[u_id].position.Y = buf.read!short();
+				l.units[u_id].previous_position = l.units[u_id].position;
 			}
 			ulong pu_id = buf.read!ulong();
 			msg = cast(Message)(new LevelDataMessage(l, pu_id));

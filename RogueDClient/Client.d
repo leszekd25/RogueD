@@ -171,7 +171,8 @@ class TCPGClient: INetClient
 					{
 						ubyte[] buffer = new ubyte[length_header];
 						int data_length = server.receive(buffer[]);
-						//Log.Write(format!"RECV %d %d"(length_header, data_length));
+						if(length_header != data_length)
+							Log.Write(format!"RECV %d %d"(length_header, data_length));
 						assert(length_header == data_length);
 						is_receiving_length = true;
 						//process data
