@@ -2,7 +2,7 @@ module ClientGameView;
 
 import std.stdio;
 import utility.ConIO;
-import ClientGameInstance;
+import Level;
 import GameLog;
 import Entity;
 import utility.Geometry;
@@ -10,7 +10,7 @@ import Cell;
 
 static class ClientGameView
 {
-	static ClientGameInstance game = null;
+	static Level level = null;
 	static Entity entity_follow = null;
 	static Point view_pos = Point(0, 0);
 	static Point view_size = Point(60, 25);
@@ -31,7 +31,12 @@ static class ClientGameView
 		con.destroy();
 	}
 
-	static void DrawMessages()
+	static void SetEntityFollow(Entity e)
+	{
+		entity_follow = e;
+	}
+
+	static void RedrawMessages()
 	{
 		import std.algorithm.comparison;
 		int msg_num = min(Log.max_msg_visible, Log.messages.length)-1;
@@ -43,15 +48,24 @@ static class ClientGameView
 		}
 	}
 
-	static void DrawMap()
+	static void RedrawMap()
 	{
-		Cell[] map = game.level.map;
-		Point map_size = game.level.map_size;
-		for(int y = 0; y < 25; y++)
-			for(int x = 0; x < 60; x++)
-				(*con).put(x, y, map[y*map_size.X+x].glyph.symbol, map[y*map_size.X+x].glyph.color);
-		foreach(u; game.level.units)
-			(*con).put(u.position.X, u.position.Y, u.glyph.symbol, u.glyph.color);
+		Cell[] map = level.map;
+		Point map_size = level.map_size;
+		if(entity_follow !is null)
+			view_pos = entity_follow.position-Point(cast(short)((view_size.X-1)/2), cast(short)((view_size.Y-1)/2));
+		if(view_pos.X < 0) view_pos.X = 0;
+		if(view_pos.Y < 0) view_pos.Y = 0;
+		if(view_pos.X > cast(short)(map_size.X-view_size.X)) view_pos.X = cast(short)(map_size.X-view_size.X);
+		if(view_pos.Y > cast(short)(map_size.Y-view_size.Y)) view_pos.Y = cast(short)(map_size.Y-view_size.Y);
+		for(int y = 0; y < view_size.Y; y++)
+			for(int x = 0; x < view_size.X; x++)
+			{
+				int m_off = (y+view_pos.Y)*map_size.X+x+view_pos.X;
+				(*con).put(x, y, map[m_off].glyph.symbol, map[m_off].glyph.color);
+			}
+		foreach(u; level.units)
+			(*con).put(u.position.X-view_pos.X, u.position.Y-view_pos.Y, u.glyph.symbol, u.glyph.color);
 	}
 
 	static void FrameEnd()
@@ -62,9 +76,9 @@ static class ClientGameView
 
 	static void DrawFrame()
 	{
-		if(game.level !is null)
-			DrawMap();
-		DrawMessages();
+		if(level !is null)
+			RedrawMap();
+		RedrawMessages();
 		FrameEnd();
 	}
 }

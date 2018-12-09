@@ -102,11 +102,13 @@ class LevelDataMessage: Message
 {
 	import Level;
 	Level data;
+	ulong player_unitID;
 
-	this(Level l)
+	this(Level l, ulong pu_id)
 	{
 		msg_t = MessageType.LEVEL_DATA;
 		data = l;
+		player_unitID = pu_id;
 	}
 }
 
@@ -195,7 +197,8 @@ Message BufferToMessage(ubyte[] buf)
 				l.units[u_id].position.X = buf.read!short();
 				l.units[u_id].position.Y = buf.read!short();
 			}
-			msg = cast(Message)(new LevelDataMessage(l));
+			ulong pu_id = buf.read!ulong();
+			msg = cast(Message)(new LevelDataMessage(l, pu_id));
 			msg.Message.msg_t = msg_t;
 			break;
 		case MessageType.MOVE_ACTION:
@@ -261,7 +264,7 @@ ubyte[] MessageToBuffer(Message msg)
 			break;
 		case MessageType.LEVEL_DATA:
 			LevelDataMessage msg_ok = cast(LevelDataMessage)msg;
-			buf.length = 4+4+(msg_ok).data.map.length*11+4+(msg_ok).data.units.length*15;
+			buf.length = 4+4+(msg_ok).data.map.length*11+4+(msg_ok).data.units.length*15+8;
 
 			buf.write!MessageType((msg_ok).msg_t, 0);
 			buf.write!short((msg_ok).data.map_size.X, 4);
@@ -285,6 +288,7 @@ ubyte[] MessageToBuffer(Message msg)
 				buf.write!short(u.position.Y, off1+4+off2+13);
 				off2 += 15;
 			}
+			buf.write!ulong((msg_ok).player_unitID, off1+4+off2);
 			break;
 		case MessageType.MOVE_ACTION:
 			MoveActionMessage msg_ok = cast(MoveActionMessage)msg;

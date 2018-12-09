@@ -14,7 +14,6 @@ int main()
 
 	TCPGClient c = new TCPGClient();
 	ClientGameInstance g = new ClientGameInstance();
-	ClientGameView.game = g;
 	c.game = g;
 	int i = 0;
 	while(true)

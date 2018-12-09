@@ -6,6 +6,7 @@ import Entity;
 import Messages;
 import GameLog;
 import Connections: Queue;
+import ClientGameView:ClientGameView;
 import utility.ConIO;
 import utility.Geometry;
 import std.format:format;
@@ -38,6 +39,7 @@ static this()
 class ClientGameInstance
 {
 	Level level = null;
+	ulong client_step = 0;
 	Queue!(Message) messages_out = new Queue!(Message)();
 	Queue!(Message) messages_in = new Queue!(Message)();
 
@@ -52,7 +54,11 @@ class ClientGameInstance
 			{
 				case MessageType.LEVEL_DATA:
 					LevelDataMessage msg_ok = cast(LevelDataMessage)msg;
+					if(level !is null)
+						level.destroy();
 					level = msg_ok.data;
+					ClientGameView.level = level;
+					ClientGameView.SetEntityFollow(cast(Entity)(level.units[msg_ok.player_unitID]));
 					break;
 				case MessageType.UNIT_MOVED:
 					UnitMovedMessage msg_ok = cast(UnitMovedMessage)msg;
@@ -130,6 +136,17 @@ class ClientGameInstance
 					break;
 			}
 		}
+		client_step++;
+		/*if(client_step%30 == 0)
+		{
+			if(level !is null)
+			{
+				foreach(u; level.units.values)
+				{
+					Log.Write(format!"UNIT %d, POS (%d, %d)"(u.ID, u.position.X, u.position.Y));
+				}
+			}
+		}*/
 		return result;
 	}
 }

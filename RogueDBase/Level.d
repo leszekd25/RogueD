@@ -26,6 +26,10 @@ class Level
 		map.length = wh;
 		for(int i = 0; i < wh; i++)
 			map[i].glyph = Glyph('.', FColor.lightGray);
+
+		map[10*100+50].glyph = Glyph('#', FColor.lightGray); map[10*100+50].flags = cast(CellFlags)7;
+		map[40*100+50].glyph = Glyph('#', FColor.lightGray); map[40*100+50].flags = cast(CellFlags)7;
+
 		starting_point = Point(10, 10);
 	}
 

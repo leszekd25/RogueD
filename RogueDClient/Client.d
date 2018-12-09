@@ -28,6 +28,8 @@ class TCPGClient: INetClient
 	TcpSocket server;
 	CONNECT_STATE connect_mode;
 	bool connected =  false;
+	bool is_receiving_length = true;
+	int length_header;
 	Queue!(ubyte[]) send_queue;
 	Queue!(Message) recv_queue;
 	ClientGameInstance game = null;
@@ -146,67 +148,74 @@ class TCPGClient: INetClient
 				//receive loop
 				while(true)
 				{
-					int[1] next_length;
-					int recv_data = server.receive(next_length[]);
-					if(recv_data == Socket.ERROR)
+					if(is_receiving_length)
 					{
-						//do some timing and disconnect if too long wait
+						int[1] lgt_h;
+						int recv_data = server.receive(lgt_h[]);
+						if(recv_data == Socket.ERROR)
+						{
+							//do some timing and disconnect if too long wait
 
-						break;
+							break;
+						}
+						if(recv_data == 0)
+						{
+							connect_mode = CONNECT_STATE.DISCONNECTING;
+							break;
+						}
+						length_header = lgt_h[0];
+						is_receiving_length = false;
+						continue;
 					}
-					if(recv_data == 0)
+					else
 					{
-						connect_mode = CONNECT_STATE.DISCONNECTING;
-						break;
+						ubyte[] buffer = new ubyte[length_header];
+						int data_length = server.receive(buffer[]);
+						//Log.Write(format!"RECV %d %d"(length_header, data_length));
+						assert(length_header == data_length);
+						is_receiving_length = true;
+						//process data
+						Message msg = BufferToMessage(buffer);
+						MessageType msg_t = msg.msg_t;
+						bool msg_pushed = false;
+
+						switch(msg_t)
+						{
+							case MessageType.REGISTER_OK:
+								Log.Write("Register successful", FColor.brightGreen, LogMessageType.SERVER);
+								break;
+							case MessageType.REGISTER_FAILED:
+								Log.Write("Register failed!", FColor.brightYellow, LogMessageType.SERVER);
+								break;
+							case MessageType.LOG_IN_OK:
+								Log.Write("Login successful", FColor.brightGreen, LogMessageType.SERVER);
+								SendMessage(new Message(MessageType.READY_TO_LOAD_LEVEL));
+								logged_in = true;
+								break;
+							case MessageType.LOG_IN_FAILED:
+								Log.Write("Login failed!", FColor.brightYellow, LogMessageType.SERVER);
+								break;						
+							case MessageType.LOG_OUT_OK:
+								Log.Write("Logout successful", FColor.brightGreen, LogMessageType.SERVER);
+								logged_in = false;
+								break;
+							case MessageType.LOG_OUT_FAILED:
+								Log.Write("Logout failed!", FColor.brightYellow, LogMessageType.SERVER);
+								break;
+							case MessageType.DISCONNECT:
+								Disconnect();
+								break;
+							case MessageType.PING:
+								ping = MonoTime()-ping_timer;
+								break;
+							default:
+								recv_queue.push(msg);
+								msg_pushed = true;
+								break;
+						}
+						if(!msg_pushed)
+							msg.destroy();
 					}
-
-					ubyte[] buffer = new ubyte[next_length[0]];
-					int data_length = server.receive(buffer[]);
-
-
-					//Log.Write(format!"RECV %d %d"(next_length[0], data_length));
-					assert(next_length[0] == data_length);
-					//process data
-					Message msg = BufferToMessage(buffer);
-					MessageType msg_t = msg.msg_t;
-					bool msg_pushed = false;
-
-					switch(msg_t)
-					{
-						case MessageType.REGISTER_OK:
-							Log.Write("Register successful", FColor.brightGreen, LogMessageType.SERVER);
-							break;
-						case MessageType.REGISTER_FAILED:
-							Log.Write("Register failed!", FColor.brightYellow, LogMessageType.SERVER);
-							break;
-						case MessageType.LOG_IN_OK:
-							Log.Write("Login successful", FColor.brightGreen, LogMessageType.SERVER);
-							SendMessage(new Message(MessageType.READY_TO_LOAD_LEVEL));
-							logged_in = true;
-							break;
-						case MessageType.LOG_IN_FAILED:
-							Log.Write("Login failed!", FColor.brightYellow, LogMessageType.SERVER);
-							break;						
-						case MessageType.LOG_OUT_OK:
-							Log.Write("Logout successful", FColor.brightGreen, LogMessageType.SERVER);
-							logged_in = false;
-							break;
-						case MessageType.LOG_OUT_FAILED:
-							Log.Write("Logout failed!", FColor.brightYellow, LogMessageType.SERVER);
-							break;
-						case MessageType.DISCONNECT:
-							Disconnect();
-							break;
-						case MessageType.PING:
-							ping = MonoTime()-ping_timer;
-							break;
-						default:
-							recv_queue.push(msg);
-							msg_pushed = true;
-							break;
-					}
-					if(!msg_pushed)
-						msg.destroy();
 				}
 				//send queue to game
 				game.messages_in = recv_queue;

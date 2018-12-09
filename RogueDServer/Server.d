@@ -11,6 +11,11 @@ struct GClientData
 {
 	bool alive = false;      //if this is false, the slot can be replaced by new connection
 	bool end_connection = false;  //set to true to end connection
+
+	// related to recv queue
+	bool is_receiving_length = true;   //if true, the server waits for next message length, otherwise - for the message itself
+	int length_header;
+
 	InternetAddress address;
 	Socket client;           //connection socket
 	int current_player = -1; //player id currently owned by this client
@@ -21,7 +26,6 @@ class GServer
 {
 	TcpSocket listener;
 	GameInstance game;
-
 	GClientData[MAX_CONNECTIONS] clients;
 	GlobalPlayer[] players; int max_player_id = 0;
 	int[string] name_to_player;  //index for searching player ids by name
@@ -146,95 +150,106 @@ class GServer
 			// receive loop
 			while(true)
 			{
-				int[1] header;  //buf length
-				int recv_data = clients[i].client.receive(header[]);
-				if(recv_data == Socket.ERROR)
+				if(clients[i].is_receiving_length)
 				{
-					//do some timing and disconnect if too long wait
-					break;
-				}
-				if(recv_data == 0)
-				{
-					//disconnect this socket
-					clients[i].client.close();
-					clients[i].alive = false;
-					writefln("Closed connection to client id %d (client side)", i);
-					break;
-				}
-
-				ubyte[] buffer = new ubyte[header[0]];
-				int data_length = clients[i].client.receive(buffer[]);
-				assert(header[0] == data_length);
-
-				Message msg = BufferToMessage(buffer);
-				//writefln("RECV %d", data_length);
-				bool msg_pushed = false;
-				//writefln("RECEIVED DATA FROM C_ID %u %u", i, (msg).msg_t);
-				//process data
-				switch((msg).msg_t)
-				{
-					case MessageType.EXIT:
-						DropConnection(i);
-						writeln("CLIENT C_ID %d EXIT REQUEST", i);
-						PlayerLeaveGame(clients[i].current_player);
+					int[1] lgt_h;
+					int recv_data = clients[i].client.receive(lgt_h[]);
+					if(recv_data == Socket.ERROR)
+					{
+						//do some timing and disconnect if too long wait
 						break;
-					case MessageType.REGISTER:
-						LogInMessage msg_ok = cast(LogInMessage)msg;
-						int* p_id = ((msg_ok).name in name_to_player);
-						if(p_id is null)
-						{
-							CreatePlayer((msg_ok).name, (msg_ok).password);
-							SendClientMessage(new Message(MessageType.REGISTER_OK), i);
-						}
-						else
-						{
-							SendClientMessage(new Message(MessageType.REGISTER_FAILED), i);
-						}
+					}
+					if(recv_data == 0)
+					{
+						//disconnect this socket
+						clients[i].client.close();
+						clients[i].alive = false;
+						writefln("Closed connection to client id %d (client side)", i);
 						break;
-					case MessageType.LOG_IN:
-						if(clients[i].current_player != -1)
-						{
-							SendClientMessage(new Message(MessageType.LOG_IN_FAILED), i);
+					}
+					clients[i].length_header = lgt_h[0];
+					clients[i].is_receiving_length = false;
+					continue;
+				}
+				else
+				{
+					ubyte[] buffer = new ubyte[clients[i].length_header];
+					int data_length = clients[i].client.receive(buffer[]);
+					assert(clients[i].length_header == data_length);
+					clients[i].is_receiving_length = true;
+
+					Message msg = BufferToMessage(buffer);
+					//writefln("RECV %d", data_length);
+					bool msg_pushed = false;
+					//writefln("RECEIVED DATA FROM C_ID %u %u", i, (msg).msg_t);
+					//process data
+					switch((msg).msg_t)
+					{
+						case MessageType.EXIT:
+							DropConnection(i);
+							writeln("CLIENT C_ID %d EXIT REQUEST", i);
+							PlayerLeaveGame(clients[i].current_player);
 							break;
-						}
-						LogInMessage msg_ok = cast(LogInMessage)msg;
-						int* p_id = ((msg_ok).name in name_to_player);
-						if(p_id !is null)
-						{
-							if(players[*p_id].password == (msg_ok).password)
+						case MessageType.REGISTER:
+							LogInMessage msg_ok = cast(LogInMessage)msg;
+							int* p_id = ((msg_ok).name in name_to_player);
+							if(p_id is null)
 							{
-								clients[i].current_player = *p_id;
-								players[*p_id].clientID = i;
-								PlayerJoinGame(*p_id);
-								SendClientMessage(new Message(MessageType.LOG_IN_OK), i);
+								CreatePlayer((msg_ok).name, (msg_ok).password);
+								SendClientMessage(new Message(MessageType.REGISTER_OK), i);
+							}
+							else
+							{
+								SendClientMessage(new Message(MessageType.REGISTER_FAILED), i);
+							}
+							break;
+						case MessageType.LOG_IN:
+							if(clients[i].current_player != -1)
+							{
+								SendClientMessage(new Message(MessageType.LOG_IN_FAILED), i);
 								break;
 							}
-						}
-						SendClientMessage(new Message(MessageType.LOG_IN_FAILED), i);
-						break;
-					case MessageType.LOG_OUT:
-						players[clients[i].current_player].clientID = -1;
-						clients[i].current_player = -1;
-						SendClientMessage(new Message(MessageType.LOG_OUT_OK), i);
-						break;
+							LogInMessage msg_ok = cast(LogInMessage)msg;
+							int* p_id = ((msg_ok).name in name_to_player);
+							if(p_id !is null)
+							{
+								if(players[*p_id].password == (msg_ok).password)
+								{
+									clients[i].current_player = *p_id;
+									players[*p_id].clientID = i;
+									if(!(players[*p_id].isPlaying))
+										PlayerJoinGame(*p_id);
+									SendClientMessage(new Message(MessageType.LOG_IN_OK), i);
+									break;
+								}
+							}
+							SendClientMessage(new Message(MessageType.LOG_IN_FAILED), i);
+							break;
+						case MessageType.LOG_OUT:
+							players[clients[i].current_player].clientID = -1;
+							clients[i].current_player = -1;
+							SendClientMessage(new Message(MessageType.LOG_OUT_OK), i);
+							break;
 
-					case MessageType.READY_TO_LOAD_LEVEL:
-						//determine which level to load (for now, only base level (-1))
-						LevelDataMessage msg_ok = new LevelDataMessage(game.base_level);
-						msg_ok.Message.msg_t = MessageType.LEVEL_DATA;
-						SendClientMessage(cast(Message)msg_ok, i);
-						break;
+						case MessageType.READY_TO_LOAD_LEVEL:
+							//determine which level to load (for now, only base level (-1))
+							LevelDataMessage msg_ok = new LevelDataMessage(game.base_level,
+																		   game.players_in_game[clients[i].current_player].unitID);
+							msg_ok.Message.msg_t = MessageType.LEVEL_DATA;
+							SendClientMessage(cast(Message)msg_ok, i);
+							break;
 
-					default:
-						if(clients[i].current_player != -1)
-						{
-							game.messages_in.push(new PlayerMsgWrapper(clients[i].current_player, msg));
-							msg_pushed = true;
-						}
-						break;
+						default:
+							if(clients[i].current_player != -1)
+							{
+								game.messages_in.push(new PlayerMsgWrapper(clients[i].current_player, msg));
+								msg_pushed = true;
+							}
+							break;
+					}
+					if(!msg_pushed)
+						msg.destroy();
 				}
-				if(!msg_pushed)
-					msg.destroy();
 			}
 		}
 	}
