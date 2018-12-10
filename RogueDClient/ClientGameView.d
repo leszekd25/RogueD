@@ -70,6 +70,18 @@ static class ClientGameView
 	{
 		entity_follow = e;
 		last_entity_pos = e.position;
+		view_pos = GetNewViewPos();
+	}
+
+	static Point GetNewViewPos()
+	{
+		Point map_size = level.map_size;
+		Point new_view_pos = entity_follow.position-Point(cast(short)((view_size.X-1)/2), cast(short)((view_size.Y-1)/2));
+		if(new_view_pos.X < 0) new_view_pos.X = 0;
+		if(new_view_pos.Y < 0) new_view_pos.Y = 0;
+		if(new_view_pos.X > cast(short)(map_size.X-view_size.X)) new_view_pos.X = cast(short)(map_size.X-view_size.X);
+		if(new_view_pos.Y > cast(short)(map_size.Y-view_size.Y)) new_view_pos.Y = cast(short)(map_size.Y-view_size.Y);
+		return new_view_pos;
 	}
 
 	// moves view if necessary and redraws all batched units
@@ -81,12 +93,7 @@ static class ClientGameView
 			{
 				last_entity_pos = entity_follow.position;
 				Point map_size = level.map_size;
-				Point new_view_pos = entity_follow.position-Point(cast(short)((view_size.X-1)/2), cast(short)((view_size.Y-1)/2));
-				if(new_view_pos.X < 0) new_view_pos.X = 0;
-				if(new_view_pos.Y < 0) new_view_pos.Y = 0;
-				if(new_view_pos.X > cast(short)(map_size.X-view_size.X)) new_view_pos.X = cast(short)(map_size.X-view_size.X);
-				if(new_view_pos.Y > cast(short)(map_size.Y-view_size.Y)) new_view_pos.Y = cast(short)(map_size.Y-view_size.Y);
-				if(new_view_pos != view_pos)
+				Point new_view_pos = GetNewViewPos();
 				{
 					map_redraw = true;
 					view_pos = new_view_pos;

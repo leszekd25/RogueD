@@ -6,6 +6,7 @@ import Connections;
 import Messages;
 import Player;
 import GameInstance;
+import levelgen.LevelGenerator;  // temporary
 
 struct GClientData
 {
@@ -25,7 +26,7 @@ struct GClientData
 class GServer
 {
 	TcpSocket listener;
-	GameInstance game;
+	GameInstance game = null;
 	GClientData[MAX_CONNECTIONS] clients;
 	GlobalPlayer[] players; int max_player_id = 0;
 	int[string] name_to_player;  //index for searching player ids by name
@@ -33,16 +34,16 @@ class GServer
 	this()
 	{
 		game = new GameInstance();
-		
+		// game.base_level.Test(); // helper test function
+		game.base_level = LevelFromTemplate(game.levelgen_database.Get("Test_1"), game.cell_database, 100, 50);
+
+
 		listener = new TcpSocket();
 		assert(listener.isAlive, "Error creating server");
 		listener.blocking = false;
 		listener.bind(new InternetAddress(DEFAULT_PORT));
 		listener.listen(10);
 		writefln("Created server");
-
-		game = new GameInstance();
-		game.base_level.Test();
 	}
 
 	// Player manipulation goes here--------------------------------------------------------------

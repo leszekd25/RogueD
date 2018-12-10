@@ -81,7 +81,7 @@ class Level
 			return;
 
 		int offset = toOffset(p);
-		int base = ambient_light+map[offset].baked_light;
+		int base = ambient_light+map[offset].baked_light+map[offset].emit_light;
 		foreach(light; lights.values)
 		{
 			if(!(light.is_on))

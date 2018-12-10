@@ -10,6 +10,10 @@ import std.stdio;
 
 import utility.Geometry;
 
+import TemplateDatabase:TemplateDatabase;
+import Cell;
+import levelgen.LevelGenerator;
+
 class PlayerMsgWrapper
 {
 	int playerID;
@@ -38,9 +42,18 @@ class GameInstance
 	Queue!(PlayerMsgWrapper) messages_out = new Queue!(PlayerMsgWrapper)();
 	Queue!(PlayerMsgWrapper) messages_in = new Queue!(PlayerMsgWrapper)();
 
+	TemplateDatabase!CellTemplate cell_database = null;
+	TemplateDatabase!LevelGenTemplate levelgen_database = null;
+
 	//
 	this()
 	{
+		cell_database = new TemplateDatabase!CellTemplate("\\gamedata\\templates_cell.txt");
+		levelgen_database = new TemplateDatabase!LevelGenTemplate("\\gamedata\\templates_levelgen.txt");
+		foreach(s; cell_database.name_to_index.keys)
+			writeln("Registered cell template "~s);
+		foreach(s; levelgen_database.name_to_index.keys)
+			writeln("Registered level generator template "~s);
 		base_level = new Level();
 	}
 

@@ -1,0 +1,10 @@
+# do not modify
+# this file contains level generator template definitions, game might break upon modification of this file!
+
+# test template
+
+name Test_1
+base_mode NONE
+floor_cell Floor_1
+wall_cell Wall_1
+

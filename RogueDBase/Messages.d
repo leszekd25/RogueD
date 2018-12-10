@@ -187,6 +187,7 @@ Message BufferToMessage(ubyte[] buf)
 				l.map[i].flags = buf.read!CellFlags();
 				l.map[i].movement_cost = buf.read!int();
 				l.map[i].baked_light = cast(int)(buf.read!short());
+				l.map[i].emit_light = cast(int)(buf.read!short());
 				l.map[i].light_level = cast(int)(buf.read!byte());
 			}
 			int unit_count = buf.read!int();
@@ -283,22 +284,23 @@ ubyte[] MessageToBuffer(Message msg)
 			break;
 		case MessageType.LEVEL_DATA:
 			LevelDataMessage msg_ok = cast(LevelDataMessage)msg;
-			buf.length = 4+4+(msg_ok).data.map.length*14+4+(msg_ok).data.units.length*15+2+4+(msg_ok).data.lights.length*14+8;
+			buf.length = 4+4+(msg_ok).data.map.length*16+4+(msg_ok).data.units.length*15+2+4+(msg_ok).data.lights.length*14+8;
 
 			buf.write!MessageType((msg_ok).msg_t, 0);
 			// map size
 			buf.write!short((msg_ok).data.map_size.X, 4);
 			buf.write!short((msg_ok).data.map_size.Y, 6);
 			// map
-			int off1 = 8+(msg_ok).data.map.length*14;
+			int off1 = 8+(msg_ok).data.map.length*16;
 			for(int i = 0; i < (msg_ok).data.map.length; i++)
 			{
-				buf.write!char((msg_ok).data.map[i].glyph.symbol, 8+i*14);
-				buf.write!ushort((msg_ok).data.map[i].glyph.color, 8+i*14+1);
-				buf.write!CellFlags((msg_ok).data.map[i].flags, 8+i*14+3);
-				buf.write!int((msg_ok).data.map[i].movement_cost, 8+i*14+7);
-				buf.write!short(cast(short)((msg_ok).data.map[i].baked_light), 8+i*14+11);
-				buf.write!byte(cast(byte)((msg_ok).data.map[i].light_level), 8+i*14+13);
+				buf.write!char((msg_ok).data.map[i].glyph.symbol, 8+i*16);
+				buf.write!ushort((msg_ok).data.map[i].glyph.color, 8+i*16+1);
+				buf.write!CellFlags((msg_ok).data.map[i].flags, 8+i*16+3);
+				buf.write!int((msg_ok).data.map[i].movement_cost, 8+i*16+7);
+				buf.write!short(cast(short)((msg_ok).data.map[i].baked_light), 8+i*16+11);
+				buf.write!short(cast(short)((msg_ok).data.map[i].emit_light), 8+i*16+13);
+				buf.write!byte(cast(byte)((msg_ok).data.map[i].light_level), 8+i*16+15);
 			}
 			// units
 			buf.write!int((msg_ok).data.units.length, off1);
