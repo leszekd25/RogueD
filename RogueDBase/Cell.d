@@ -2,7 +2,7 @@ module Cell;
 
 import utility.ConIO: FColor, BColor;
 
-enum CellFlags {blocksMovement = 1, blocksVision = 2, blocksProjectiles = 4, discovered = 8};
+enum CellFlags {blocksMovement = 1, blocksVision = 2, blocksProjectiles = 4, discovered = 8, visible = 16};
 
 struct Glyph
 {
@@ -30,4 +30,6 @@ struct Cell
 	Glyph glyph;
 	CellFlags flags = cast(CellFlags)0;
 	int movement_cost = 100; // base movement cost is 100, the higher, the slower unit passes through the cell
+	int baked_light = 0;  //precomputed at the start of the level, base level of light (not including ambient level light?) (-100 - 100)
+	int light_level = 0;  //0-100, 100 is max
 }

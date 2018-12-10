@@ -8,6 +8,7 @@ import GameLog;
 import Entity;
 import utility.Geometry;
 import Cell;
+import std.format:format;
 
 static class ClientGameView
 {
@@ -19,6 +20,7 @@ static class ClientGameView
 	static bool map_redraw = true;
 	static bool messages_redraw = true;
 	static Queue!Entity redraw_entities;
+	static Unit[ulong] vision_units;     //units which give vision to player
 	
 	static this()
 	{
@@ -46,6 +48,7 @@ static class ClientGameView
 		return (p.X >= view_pos.X)&&(p.X < view_pos.X+view_size.X)&&(p.Y >= view_pos.Y)&&(p.Y < view_pos.Y+view_size.Y);
 	}
 
+	// if called, map will be fully redrawn in the next frame
 	static void RequestMapRedraw()
 	{
 		map_redraw = true;
@@ -56,17 +59,20 @@ static class ClientGameView
 		messages_redraw = true;
 	}
 
+	// all entities are redrawn in one batch (!!!! todo: make sure each entity only shows up once in the batch)
 	static void EntityRedraw(Entity e)
 	{
 		redraw_entities.push(e);
 	}
 
+	// view will follow the entity
 	static void SetEntityFollow(Entity e)
 	{
 		entity_follow = e;
 		last_entity_pos = e.position;
 	}
 
+	// moves view if necessary and redraws all batched units
 	static void UpdateEntityState()
 	{
 		if(entity_follow !is null)
@@ -109,6 +115,59 @@ static class ClientGameView
 		}
 	}
 
+	// shoots rays through the scene and performs action on each cell met
+	static void VisionCast(Point p, int r,  void function(int) f)
+	{
+		Point[] ring = GenerateRing(p, r);
+		foreach(pt; ring)
+		{
+			Ray ray = Ray(p, pt);
+			while(!(ray.isDone()))
+			{
+				int n_off = level.toOffset(ray.Next());
+				if(!level.IsValidCell(n_off))
+					break;
+				f(n_off);
+				if(level.map[n_off].flags & CellFlags.blocksVision)
+					break;
+			}
+		}
+	}
+
+	static void VisionClear(int o)
+	{
+		level.map[o].flags &= ~(CellFlags.visible);
+	}
+
+	static void VisionDiscover(int o)
+	{
+		level.map[o].flags |= (CellFlags.discovered | CellFlags.visible);
+	}
+
+	// vision related
+	static void VisionUnitAdd(Unit u)
+	{
+		vision_units[u.ID] = u;
+	}
+
+	static bool IsVisionUnit(ulong u_id)
+	{
+		return ((u_id in vision_units) !is null);
+	}
+
+	static void VisionUnitRemove(ulong u_id)
+	{
+		vision_units.remove(u_id);
+	}
+
+	static  VisionUnitUpdate(ulong u_id)
+	{
+		Unit u = vision_units[u_id];
+		VisionCast(u.previous_position, u.sight_range, &VisionClear);
+		VisionCast(u.position, u.sight_range, &VisionDiscover);
+		map_redraw = true;
+	}
+
 	static void RedrawMessages()
 	{
 		(*con).clear_region(cast(short)0, view_size.Y, view_size.X, cast(short)(Log.max_msg_visible));
@@ -125,6 +184,7 @@ static class ClientGameView
 		(*con).refresh_region(cast(short)0, view_size.Y, view_size.X, cast(short)(Log.max_msg_visible));
 	}
 
+	// !!!!! assumes map bigger than view size (todo: fix that)
 	static void RedrawMap()
 	{
 		(*con).clear_region(0, 0, view_size.X, view_size.Y);
@@ -134,19 +194,38 @@ static class ClientGameView
 			for(int x = 0; x < view_size.X; x++)
 			{
 				int m_off = (y+view_pos.Y)*map_size.X+x+view_pos.X;
-				(*con).put(x, y, map[m_off].glyph.symbol, map[m_off].glyph.color);
+
+				// 1. dont draw undiscovered cells
+				if(!(map[m_off].flags & CellFlags.discovered))
+					continue;
+				// 2. if discovered but not visible, set color to dark gray
+				int cell_col = FColor.darkGray;
+				// 3. manipulate cell color based on lighting
+				if(map[m_off].flags & CellFlags.visible)
+				{
+					int lgt = map[m_off].light_level;
+					bool bright = cast(bool)(map[m_off].glyph.color & FColor.bright);
+					if(bright)
+					{
+						if(lgt > 50)
+							cell_col = map[m_off].glyph.color;
+						else if(lgt > 20)
+							cell_col = map[m_off].glyph.color & (~cast(int)(FColor.bright));
+					}
+					else
+					{
+						if(lgt > 35)
+							cell_col = map[m_off].glyph.color;
+					}
+				}
+
+				(*con).put(x, y, map[m_off].glyph.symbol, cast(ushort)cell_col);
 			}
 		foreach(u; level.units)
 			(*con).put(u.position.X-view_pos.X, u.position.Y-view_pos.Y, u.glyph.symbol, u.glyph.color);
 
 		//(*con).refresh();
 		(*con).refresh_region(0, 0, view_size.X, view_size.Y);
-	}
-
-	static void FrameEnd()
-	{
-		(*con).refresh();
-		(*con).clear();
 	}
 
 	static void DrawFrame()
@@ -164,6 +243,5 @@ static class ClientGameView
 			RedrawMessages();
 			messages_redraw = false;
 		}
-		//FrameEnd();
 	}
 }

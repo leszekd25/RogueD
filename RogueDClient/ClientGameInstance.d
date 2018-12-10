@@ -61,6 +61,8 @@ class ClientGameInstance
 					ClientGameView.level = level;
 					ClientGameView.SetEntityFollow(cast(Entity)(level.units[msg_ok.player_unitID]));
 					ClientGameView.RequestMapRedraw();
+					ClientGameView.VisionUnitAdd(level.units[msg_ok.player_unitID]);
+					ClientGameView.VisionUnitUpdate(msg_ok.player_unitID);
 					player_unitID = msg_ok.player_unitID;
 					break;
 				case MessageType.UNIT_MOVED:
@@ -68,6 +70,8 @@ class ClientGameInstance
 					level.units[msg_ok.u_id].previous_position = level.units[msg_ok.u_id].position;
 					level.units[msg_ok.u_id].position = msg_ok.pos;
 					ClientGameView.EntityRedraw(cast(Entity)(level.units[msg_ok.u_id]));
+					if(ClientGameView.IsVisionUnit(msg_ok.u_id))
+						ClientGameView.VisionUnitUpdate(msg_ok.u_id);
 					break;
 				default:
 					break;

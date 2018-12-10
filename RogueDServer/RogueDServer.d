@@ -13,12 +13,16 @@ int main()
 	GServer s = new GServer();
 	while(true)
 	{
+		MonoTime m1 = MonoTime();
 		s.HandleNetworkingState();
 		s.HandleNetworkingInput();
 		s.game.ProcessInput();
 		s.game.ProcessStep();
 		s.HandleNetworkingOutput();
-		Thread.sleep( dur!("msecs")( 33 ) );
+		MonoTime m2 = MonoTime();
+		Duration durr = m2-m1;
+		if(durr < dur!("msecs")( 33 ))
+			Thread.sleep( dur!("msecs")( 33 ) - durr );
 		//writeln("Step of 1 sec");
 	}
 

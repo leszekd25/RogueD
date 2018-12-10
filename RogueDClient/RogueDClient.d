@@ -16,9 +16,9 @@ int main()
 	TCPGClient c = new TCPGClient();
 	ClientGameInstance g = new ClientGameInstance();
 	c.game = g;
-	int i = 0;
 	while(true)
 	{
+		MonoTime m1 = MonoTime();
 		c.HandleNetworkingState();
 		c.HandleNetworkingInput();
 		PROCESS_RESULT pr = g.ProcessMessages();
@@ -37,8 +37,10 @@ int main()
 		ClientGameView.UpdateEntityState();
 		ClientGameView.DrawFrame();
 		c.HandleNetworkingOutput();
-		Thread.sleep( dur!("msecs")( 33 ) );
-		i+=1;
+		MonoTime m2 = MonoTime();
+		Duration durr = m2-m1;
+		if(durr < dur!("msecs")( 33 ))
+			Thread.sleep( dur!("msecs")( 33 ) - durr );
 	}
 
     return 0;

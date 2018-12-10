@@ -171,6 +171,11 @@ class TCPGClient: INetClient
 					{
 						ubyte[] buffer = new ubyte[length_header];
 						int data_length = server.receive(buffer[]);
+						if(data_length == Socket.ERROR)
+						{
+							//do some timing and disconnect if too long wait
+							break;
+						}
 						if(length_header != data_length)
 							Log.Write(format!"RECV %d %d"(length_header, data_length));
 						assert(length_header == data_length);

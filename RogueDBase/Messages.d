@@ -4,6 +4,7 @@ import std.bitmanip;
 import std.stdio;
 import utility.Geometry;
 import  Cell;
+import Light;
 import Entity;
 
 enum MessageType
@@ -185,6 +186,8 @@ Message BufferToMessage(ubyte[] buf)
 				l.map[i].glyph.color = buf.read!ushort();
 				l.map[i].flags = buf.read!CellFlags();
 				l.map[i].movement_cost = buf.read!int();
+				l.map[i].baked_light = cast(int)(buf.read!short());
+				l.map[i].light_level = cast(int)(buf.read!byte());
 			}
 			int unit_count = buf.read!int();
 			for(int i = 0; i < unit_count; i++)
@@ -197,6 +200,21 @@ Message BufferToMessage(ubyte[] buf)
 				l.units[u_id].position.X = buf.read!short();
 				l.units[u_id].position.Y = buf.read!short();
 				l.units[u_id].previous_position = l.units[u_id].position;
+			}
+			l.ambient_light = cast(int)(buf.read!short());
+			int light_count = buf.read!int();
+			for(int i = 0; i < light_count; i++)
+			{
+				int l_id = buf.read!int();
+				l.lights[l_id] = new Light();
+				l.lights[l_id].ID = l_id;
+				l.lights[l_id].position.X = buf.read!short();
+				l.lights[l_id].position.Y = buf.read!short();
+				l.lights[l_id].range = cast(int)(buf.read!ubyte());
+				l.lights[l_id].inner_strength = cast(int)(buf.read!short());
+				l.lights[l_id].outer_strength = cast(int)(buf.read!short());
+				l.lights[l_id].is_on = (buf.read!ubyte() == 1);
+
 			}
 			ulong pu_id = buf.read!ulong();
 			msg = cast(Message)(new LevelDataMessage(l, pu_id));
@@ -265,19 +283,24 @@ ubyte[] MessageToBuffer(Message msg)
 			break;
 		case MessageType.LEVEL_DATA:
 			LevelDataMessage msg_ok = cast(LevelDataMessage)msg;
-			buf.length = 4+4+(msg_ok).data.map.length*11+4+(msg_ok).data.units.length*15+8;
+			buf.length = 4+4+(msg_ok).data.map.length*14+4+(msg_ok).data.units.length*15+2+4+(msg_ok).data.lights.length*14+8;
 
 			buf.write!MessageType((msg_ok).msg_t, 0);
+			// map size
 			buf.write!short((msg_ok).data.map_size.X, 4);
 			buf.write!short((msg_ok).data.map_size.Y, 6);
-			int off1 = 8+(msg_ok).data.map.length*11;
+			// map
+			int off1 = 8+(msg_ok).data.map.length*14;
 			for(int i = 0; i < (msg_ok).data.map.length; i++)
 			{
-				buf.write!char((msg_ok).data.map[i].glyph.symbol, 8+i*11);
-				buf.write!ushort((msg_ok).data.map[i].glyph.color, 8+i*11+1);
-				buf.write!CellFlags((msg_ok).data.map[i].flags, 8+i*11+3);
-				buf.write!int((msg_ok).data.map[i].movement_cost, 8+i*11+7);
+				buf.write!char((msg_ok).data.map[i].glyph.symbol, 8+i*14);
+				buf.write!ushort((msg_ok).data.map[i].glyph.color, 8+i*14+1);
+				buf.write!CellFlags((msg_ok).data.map[i].flags, 8+i*14+3);
+				buf.write!int((msg_ok).data.map[i].movement_cost, 8+i*14+7);
+				buf.write!short(cast(short)((msg_ok).data.map[i].baked_light), 8+i*14+11);
+				buf.write!byte(cast(byte)((msg_ok).data.map[i].light_level), 8+i*14+13);
 			}
+			// units
 			buf.write!int((msg_ok).data.units.length, off1);
 			int off2 = 0;
 			foreach(u; (msg_ok).data.units.values)
@@ -289,7 +312,24 @@ ubyte[] MessageToBuffer(Message msg)
 				buf.write!short(u.position.Y, off1+4+off2+13);
 				off2 += 15;
 			}
-			buf.write!ulong((msg_ok).player_unitID, off1+4+off2);
+			// lights
+			int off_tmp = off1+4+off2+2;
+			buf.write!short(cast(short)((msg_ok).data.ambient_light), off_tmp-2);
+			buf.write!int((msg_ok).data.lights.length, off_tmp);
+			int off3 = 0;
+			foreach(l; (msg_ok).data.lights.values)
+			{
+				buf.write!int(l.ID, off_tmp+4+off3);
+				buf.write!short(l.position.X, off_tmp+4+off3+4);
+				buf.write!short(l.position.Y, off_tmp+4+off3+6);
+				buf.write!ubyte(cast(ubyte)(l.range), off_tmp+4+off3+8);
+				buf.write!short(cast(short)(l.inner_strength), off_tmp+4+off3+9);
+				buf.write!short(cast(short)(l.outer_strength), off_tmp+4+off3+11);
+				buf.write!ubyte(cast(ubyte)(l.is_on), off_tmp+4+off3+13);
+				off3 += 14;
+			}
+			// player unit id
+			buf.write!ulong((msg_ok).player_unitID, off_tmp+4+off3);
 			break;
 		case MessageType.MOVE_ACTION:
 			MoveActionMessage msg_ok = cast(MoveActionMessage)msg;

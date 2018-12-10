@@ -175,11 +175,18 @@ class GServer
 				{
 					ubyte[] buffer = new ubyte[clients[i].length_header];
 					int data_length = clients[i].client.receive(buffer[]);
+					if(data_length == Socket.ERROR)
+					{
+						//do some timing and disconnect if too long wait
+						break;
+					}
+
+					if(clients[i].length_header != data_length)
+						writefln("RECV ERROR %d %d", clients[i].length_header, data_length);
 					assert(clients[i].length_header == data_length);
 					clients[i].is_receiving_length = true;
 
 					Message msg = BufferToMessage(buffer);
-					//writefln("RECV %d", data_length);
 					bool msg_pushed = false;
 					//writefln("RECEIVED DATA FROM C_ID %u %u", i, (msg).msg_t);
 					//process data

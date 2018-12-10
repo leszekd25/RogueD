@@ -103,7 +103,7 @@
   <useStdLibPath>1</useStdLibPath>
   <cRuntime>2</cRuntime>
   <privatePhobos>0</privatePhobos>
-  <additionalOptions>-transition=intpromote</additionalOptions>
+  <additionalOptions>-transition=intpromote -unittest</additionalOptions>
   <preBuildCommand />
   <postBuildCommand />
   <filesToClean>*.obj;*.cmd;*.build;*.json;*.dep;*.tlog</filesToClean>
@@ -211,7 +211,7 @@
   <useStdLibPath>1</useStdLibPath>
   <cRuntime>2</cRuntime>
   <privatePhobos>0</privatePhobos>
-  <additionalOptions>-transition=intpromote</additionalOptions>
+  <additionalOptions>-transition=intpromote -unittest</additionalOptions>
   <preBuildCommand />
   <postBuildCommand />
   <filesToClean>*.obj;*.cmd;*.build;*.json;*.dep;*.tlog</filesToClean>
@@ -535,7 +535,7 @@
   <useStdLibPath>1</useStdLibPath>
   <cRuntime>2</cRuntime>
   <privatePhobos>0</privatePhobos>
-  <additionalOptions>-transition=intpromote</additionalOptions>
+  <additionalOptions>-transition=intpromote -unittest</additionalOptions>
   <preBuildCommand />
   <postBuildCommand />
   <filesToClean>*.obj;*.cmd;*.build;*.json;*.dep;*.tlog</filesToClean>
@@ -643,7 +643,7 @@
   <useStdLibPath>1</useStdLibPath>
   <cRuntime>2</cRuntime>
   <privatePhobos>0</privatePhobos>
-  <additionalOptions>-transition=intpromote</additionalOptions>
+  <additionalOptions>-transition=intpromote -unittest</additionalOptions>
   <preBuildCommand />
   <postBuildCommand />
   <filesToClean>*.obj;*.cmd;*.build;*.json;*.dep;*.tlog</filesToClean>
@@ -874,6 +874,7 @@
   <File path="Connections.d" />
   <File path="Entity.d" />
   <File path="Level.d" />
+  <File path="Light.d" />
   <File path="Messages.d" />
   <File path="Player.d" />
   <File path="RogueDBase.d" />
