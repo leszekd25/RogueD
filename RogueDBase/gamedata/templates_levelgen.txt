@@ -8,3 +8,17 @@ base_mode NONE
 floor_cell Floor_1
 wall_cell Wall_1
 
+
+# cellular template, see http://roguebasin.com/index.php?title=Cellular_Automata_Method_for_Generating_Random_Cave-Like_Levels
+
+name CellularGen_1
+base_mode CELLULAR
+floor_cell Floor_1
+wall_cell Wall_1
+init 45
+wall ruleset_1 4 1 >
+wall ruleset_1 1 2 =
+wall ruleset_2 4 1 >
+# iter ruleset_1 3
+# iter ruleset_2 1
+

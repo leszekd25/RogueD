@@ -35,7 +35,7 @@ class GServer
 	{
 		game = new GameInstance();
 		// game.base_level.Test(); // helper test function
-		game.base_level = LevelFromTemplate(game.levelgen_database.Get("Test_1"), game.cell_database, 100, 50);
+		game.base_level = LevelFromTemplate(game.levelgen_database.Get("CellularGen_1"), game.cell_database, 100, 50);
 
 
 		listener = new TcpSocket();

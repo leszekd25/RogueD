@@ -870,12 +870,15 @@
    <File path="gamedata\templates_levelgen.txt" />
   </Folder>
   <Folder name="levelgen">
+   <File path="levelgen\CellularGenerator.d" />
    <File path="levelgen\LevelGenerator.d" />
+   <File path="levelgen\ValueNoiseGenerator.d" />
   </Folder>
   <Folder name="utility">
    <File path="utility\ConIO.d" />
    <File path="utility\Geometry.d" />
    <File path="utility\IntMath.d" />
+   <File path="utility\Random.d" />
    <File path="utility\TemplateReader.d" />
   </Folder>
   <File path="Cell.d" />

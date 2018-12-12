@@ -13,6 +13,7 @@ import utility.Geometry;
 import TemplateDatabase:TemplateDatabase;
 import Cell;
 import levelgen.LevelGenerator;
+import levelgen.CellularGenerator;
 
 class PlayerMsgWrapper
 {
@@ -194,4 +195,32 @@ class GameInstance
 		base_level.step += base_level.step_multiplier;
 		global_step++;
 	}
+}
+
+
+
+// highest abstraction level map generator
+static Level LevelFromTemplate(LevelGenTemplate tmpl, TemplateDatabase!CellTemplate cell_db, int width, int height)
+{
+	Level l;
+	switch(tmpl.base_mode)
+	{
+		case LevelGenBaseMode.NONE:
+			LevelGenNone lg = new LevelGenNone();
+			lg.GetCellTemplates(tmpl, cell_db);
+			lg.GetGeneratorParameters(tmpl);
+			l = lg.Generate(width, height);
+			lg.destroy();
+			break;
+		case LevelGenBaseMode.CELLULAR:
+			LevelGenCellular lg = new LevelGenCellular();
+			lg.GetCellTemplates(tmpl, cell_db);
+			lg.GetGeneratorParameters(tmpl);
+			l = lg.Generate(width, height);
+			lg.destroy();
+			break;
+		default:
+			assert(0);
+	}
+	return l;
 }

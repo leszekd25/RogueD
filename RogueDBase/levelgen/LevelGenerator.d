@@ -5,36 +5,71 @@ import Level;
 import TemplateDatabase:TemplateDatabase,DataTemplate;
 import utility.TemplateReader;
 import utility.Geometry;
+import Connections:Queue;
 
-enum LevelGenBaseMode {NONE = -1, VALUE_NOISE = 0, DRUNKARD_WALK = 1, BSP = 2, MAZE = 3, CELLULAR_AUTOMATA = 4}
+enum LevelGenBaseMode {NONE = -1, NOISE = 0, DRUNKARD = 1, BSP = 2, MAZE = 3, CELLULAR = 4}
 
 class LevelGenTemplate: DataTemplate
 {
 	LevelGenBaseMode base_mode;
-	double[string] params;
+	string[][int] gen_params;
 	string ctf_name;
 	string ctw_name;
 
-	override void ReadTemplate(TemplateReader tr)
+	void ParseCommands(ref string[][int] commands)
 	{
-		import std.conv:parse;
+		import std.conv:to;
 
-		base_mode = parse!LevelGenBaseMode(tr.EntryGetParameter("base_mode")[0]);
-		ctf_name = tr.EntryGetParameter("floor_cell")[0];
-		ctw_name = tr.EntryGetParameter("wall_cell")[0];
-		if(tr.EntryHasParameter("param"))
+		int gp_count = 0;
+		for(int i =  0; i < commands.length; i++)
 		{
-			string[] tmp_params = tr.EntryGetParameter("param");
-			for(int i = 0; i < tmp_params.length; i+=2)
-				params[tmp_params[i]] = parse!double(tmp_params[i+1]);
+			string[] command = commands[i];
+			switch(command[0])
+			{
+				case "base_mode":
+					base_mode = to!LevelGenBaseMode(command[1]);
+					break;
+				case "floor_cell":
+					ctf_name = command[1];
+					break;
+				case "wall_cell":
+					ctw_name = command[1];
+					break;
+				default:
+					gen_params[gp_count] = command;
+					gp_count++;
+					break;
+			}
 		}
 	}
+
+	int GenGetCommandCount()
+	{
+		return gen_params.length;
+	}
+
+	string[] GenGetCommand(int i)
+	{
+		return gen_params[i];
+	}
+}
+struct CellTopologyInfo
+{
+	Point position;
+	int wall_distance;
+	int number_of_neighbors;
+	int group_id;
+	int home_step_distance;
+	int home_weighted_distance;
+	int movement_cost;
+	Point came_from;
 }
 
 abstract class LevelGenerator
 {
 	CellTemplate floor_cell;
 	CellTemplate wall_cell;
+
 	void GetGeneratorParameters(LevelGenTemplate tmpl);
 	void GetCellTemplates(LevelGenTemplate tmpl, TemplateDatabase!CellTemplate cell_db)
 	{
@@ -71,23 +106,4 @@ class LevelGenNone: LevelGenerator
 			l.ComputeLightPowerAtCell(l.toPoint(i));
 		return l;
 	}
-}
-
-// highest abstraction level map generator
-static Level LevelFromTemplate(LevelGenTemplate tmpl, TemplateDatabase!CellTemplate cell_db, int width, int height)
-{
-	Level l;
-	switch(tmpl.base_mode)
-	{
-		case LevelGenBaseMode.NONE:
-			LevelGenNone lg = new LevelGenNone();
-			lg.GetCellTemplates(tmpl, cell_db);
-			lg.GetGeneratorParameters(tmpl);
-			l = lg.Generate(width, height);
-			lg.destroy();
-			break;
-		default:
-			assert(0);
-	}
-	return l;
 }

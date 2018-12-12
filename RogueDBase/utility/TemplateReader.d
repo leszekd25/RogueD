@@ -7,11 +7,12 @@ import std.array:split;
 import std.conv:text;
 import std.uni:isWhite;
 import std.path : dirName;
+import Connections:Queue;
 
 
 class TemplateReader
 {
-	string[][string] params;
+	string[][int] params;
 	File f;
 	int max_id = 0;
 	this(string filename)
@@ -28,6 +29,7 @@ class TemplateReader
 			f.close();
 	}
 
+	// reads next entry from file to the queue
 	bool ReadNextEntry()
 	{
 		foreach(l; params.keys)
@@ -36,6 +38,7 @@ class TemplateReader
 		}
 		string fl;
 		bool success = false;
+		int cur_command = 0;
 		while(!f.eof)
 		{
 			fl = f.readln().strip();
@@ -51,26 +54,28 @@ class TemplateReader
 			success = true;
 			// split to array
 			string[] pms = fl.split!isWhite;
-			if((pms[0] in params) !is null)
+			/*if((pms[0] in params) !is null)
 				params[pms[0]] ~= pms[1 .. $];
 			else
-				params[pms[0]] = pms[1 .. $];
+				params[pms[0]] = pms[1 .. $];*/
+			params[cur_command] = pms;
+			cur_command++;
 		}
 		if(success)
 		{
-			params["id"] = [text(max_id)];
+			params[cur_command] = ["id", text(max_id)];
 			max_id++;
 		}
 		return success;
 	}
 
-	string[] EntryGetParameter(string param)
+	string[] EntryGetParameter(int param)
 	{
 		return params[param];
 	}
 
-	bool EntryHasParameter(string param)
+	int EntryGetCommandCount()
 	{
-		return (param in params)!is null;
+		return params.length;
 	}
 }

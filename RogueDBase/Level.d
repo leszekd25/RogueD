@@ -7,9 +7,6 @@ import Light;
 import utility.Geometry;
 import utility.ConIO: FColor, BColor;
 
-// todo: EVERYTHING by offsets, not by points!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// might be problematic for algorithms though
-
 class Level
 {
 	int ID;
@@ -18,7 +15,7 @@ class Level
 	int ambient_light = 100;  //-100 to 100
 	Unit[ulong] units;
 	Point map_size;
-	Cell[] map;    // change to 2D
+	Cell[] map;
 	Light[int] lights;
 
 	Point starting_point;

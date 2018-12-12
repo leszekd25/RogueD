@@ -41,26 +41,45 @@ class CellTemplate:DataTemplate
 {
 	Glyph glyph;
 	CellFlags flags;
-	int movement_cost;
 	int emit_light;
-	override void ReadTemplate(TemplateReader tr)
+	int movement_cost;
+	this()
 	{
-		import std.conv:parse;
-
-		char chr = tr.EntryGetParameter("symbol")[0][0];
-		ushort col = cast(ushort)(parse!FColor(tr.EntryGetParameter("color")[0]));
-		glyph = Glyph();
-		glyph.symbol = chr; glyph.color = col;
+		glyph = Glyph('.', 0);
 		flags = cast(CellFlags)0;
+		assert(!flags);
 		emit_light = 0;
 		movement_cost = 100;
-		if(tr.EntryHasParameter("flags"))
-			foreach(s; tr.EntryGetParameter("flags"))
-				flags |= parse!CellFlags(s);
-		if(tr.EntryHasParameter("emit_light"))
-			emit_light = parse!int(tr.EntryGetParameter("emit_light")[0]);
-		if(tr.EntryHasParameter("movement_cost"))
-			emit_light = parse!int(tr.EntryGetParameter("movement_cost")[0]);
+	}
+	void ParseCommands(ref string[][int] commands)
+	{
+		import std.conv:to;
+	
+		for(int i =  0; i < commands.length; i++)
+		{
+			string[] command = commands[i];
+			switch(command[0])
+			{
+				case "symbol":
+					glyph.symbol = command[1][0];
+					break;
+				case "color":
+					glyph.color = cast(ushort)(to!FColor(command[1]));
+					break;
+				case "flags":
+					for(int j = 1; j < command.length; j++)
+						flags |= to!CellFlags(command[j]);
+					break;
+				case "emit_light":
+					emit_light = to!int(command[1]);
+					break;
+				case "movement_cost":
+					movement_cost = to!int(command[1]);
+					break;
+				default:
+					break;
+			}
+		}
 
 	}
 }
